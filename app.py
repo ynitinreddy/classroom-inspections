@@ -5,6 +5,8 @@ import numpy as np
 from ultralytics import YOLO
 import os, openai, streamlit as st
 import torch
+from docx import Document
+from docx.shared import Inches
 torch.classes.__path__ = []
 
 if "OPENAI_API_KEY" in st.secrets:          # Streamlit Cloud path
