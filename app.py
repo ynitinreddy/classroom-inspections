@@ -160,9 +160,9 @@ if st.session_state.uploaded_files:
 st.subheader("Step 2: Choose Model & Options")
 model_choice = st.selectbox(
     "Select LLM model type:",
-    ["Basic (faster, lower cost)", "Advanced (slower, more reasoning)", "Expert (most advanced reasoning for images)"],
+    ["Best (faster, lower cost)", "Basic (fastest, cheapest)", "Expert (most advanced reasoning for images) - need to add"],
     index=0,
-    help="Basic uses GPT-4 Turbo; Advanced uses GPT-4; Expert uses the best available vision reasoning"
+    help="Best uses GPT-4o; Basic uses GPT-40-mini; Expert uses the best available vision reasoning, need to add yet"
 )
 enable_yolo = st.checkbox(
     "Enable YOLO-based anomaly detection?",
@@ -171,8 +171,8 @@ enable_yolo = st.checkbox(
 )
 
 model_map = {
-    "Best model (faster, lower cost)": ("gpt-4o", "Using best model."),
-    "Smaller model (fastest, cheapest)": ("gpt-4o-mini", "Using smaller model."),
+    "Best (faster, lower cost)": ("gpt-4o", "Using best model."),
+    "Basic (fastest, cheapest)": ("gpt-4o-mini", "Using smaller model."),
     "Expert (most advanced reasoning for images) - need to add": ("gpt-4o", "Using expert-level reasoning model (gpt-4o).")
 }
 selected_model, model_comment = model_map[model_choice]
