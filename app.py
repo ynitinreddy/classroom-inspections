@@ -112,12 +112,17 @@ st.markdown("Welcome! Upload classroom images to automatically detect issues and
 # -----------------------------------------------------------
 
 
-def generate_docx_report(report_text, original_images, anomaly_images=None):
+def generate_docx_report(report_text, original_images, anomaly_images=None, class_number=None):
+
     doc = Document()
 
     # --- Title and Date ---
     doc.add_heading('Classroom Inspection Report', 0)
-    doc.add_paragraph("Class Number: __________________")  # Leave for user to fill
+    if class_number:
+        doc.add_paragraph(f"Class Number: {class_number}")
+    else:
+        doc.add_paragraph("Class Number: __________________")  # Leave blank if not provided
+  # Leave for user to fill
     doc.add_paragraph(f"Date: {datetime.date.today().strftime('%B %d, %Y')}")
     doc.add_paragraph("")  # spacer
 
@@ -205,6 +210,14 @@ if st.session_state.uploaded_files:
         key_id = int(st.session_state.uploader_key.split("_")[1]) + 1
         st.session_state.uploader_key = f"uploader_{key_id}"
         st.rerun()
+
+
+# --- Optional Class Number Input ---
+st.subheader("Step 1.5: Enter Class Number (Optional)")
+class_number = st.text_input(
+    "If you want, enter the classroom number (e.g., 'DH 101'). This will appear in the report and file name.",
+    value=""
+)
 
 
 
@@ -334,6 +347,7 @@ with col2:
 status = st.empty()
 
 if run_button:
+    anomaly_images = None
     if not st.session_state.uploaded_files:
         st.error("Please upload at least 1 image.")
     else:
@@ -364,13 +378,22 @@ if run_button:
         st.subheader("Inspection Report")
         st.markdown(report)
         # --- Generate DOCX ---
-        docx_file = generate_docx_report(report, st.session_state.uploaded_files, anomaly_images if enable_yolo else None)
+        docx_file = generate_docx_report(
+            report,
+            st.session_state.uploaded_files,
+            anomaly_images if enable_yolo else None,
+            class_number
+        )
+
+        today_str = datetime.date.today().strftime("%Y-%m-%d")
+        file_suffix = f"{today_str}_{class_number.replace(' ', '_')}" if class_number else "classroom_inspection_report"
+        file_name = f"{file_suffix}.docx"
 
         # --- Download Button ---
         st.download_button(
             label="📄 Download Full Report (.docx)",
             data=docx_file,
-            file_name="classroom_inspection_report.docx",
+            file_name=file_name,
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True
         )
