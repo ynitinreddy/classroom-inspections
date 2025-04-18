@@ -254,9 +254,8 @@ if enable_yolo:
         39: "bottle", 40: "wine glass", 41: "cup", 42: "fork", 43: "knife",
         44: "spoon", 45: "bowl", 46: "banana", 47: "apple", 48: "sandwich",
         49: "orange", 50: "broccoli", 51: "carrot", 52: "hot dog", 53: "pizza",
-        54: "donut", 55: "cake", 61: "toilet", 63: "laptop", 67: "cell phone",
-        68: "microwave", 69: "oven", 70: "toaster", 71: "sink", 72: "refrigerator",
-        73: "book", 75: "vase", 76: "scissors", 77: "teddy bear",
+        54: "donut", 55: "cake", 67: "cell phone",
+        73: "book", 75: "vase", 76: "scissors",
         78: "hair drier", 79: "toothbrush"
     }
 
@@ -366,6 +365,8 @@ if run_button:
         if enable_yolo:
             status.info("Detecting anomalies with YOLO…")
             anomalies, annotated_images = detect_anomalies(st.session_state.uploaded_files)
+            anomaly_images = annotated_images 
+
 
             with st.expander("📦 YOLO Anomaly Detections"):
                 cols = st.columns(min(len(annotated_images), 4))
