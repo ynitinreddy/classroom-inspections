@@ -272,19 +272,26 @@ def detect_anomalies(images):
     for image_file in images:
         img = Image.open(image_file).convert("RGB")
         img_np = np.array(img)
-        results = yolo_model(img_np, classes=list(ANOMALY_CLASSES.keys()))
+        results = yolo_model(img_np, classes=list(ANOMALY_CLASSES.keys()))  # filter to only anomaly classes
 
         for result in results:
-            result_img = result.plot(conf=True, labels=True)
-            annotated_images.append(Image.fromarray(result_img))
+            if result.boxes is None or len(result.boxes) == 0:
+                continue  # skip if no detections
 
+            has_anomalies = False
             for box in result.boxes:
                 cls = int(box.cls[0])
                 if cls in ANOMALY_CLASSES:
                     name = ANOMALY_CLASSES[cls]
                     counts[name] = counts.get(name, 0) + 1
+                    has_anomalies = True
+
+            if has_anomalies:
+                result_img_annotated = result.plot(conf=True, labels=True)
+                annotated_images.append(Image.fromarray(result_img_annotated))
 
     return counts, annotated_images
+
 
 
 
@@ -368,11 +375,15 @@ if run_button:
             anomaly_images = annotated_images 
 
 
+        if annotated_images:
             with st.expander("📦 YOLO Anomaly Detections"):
                 cols = st.columns(min(len(annotated_images), 4))
                 for i, img in enumerate(annotated_images):
                     with cols[i % 4]:
                         st.image(img, caption=f"Detections in Image {i+1}", use_container_width=True)
+        else:
+            st.info("No anomalies were detected in any images.")
+
 
 
         status.info("Calling AI Model…")
