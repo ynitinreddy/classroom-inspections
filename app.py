@@ -106,6 +106,58 @@ st.image("ASU-logo.png", width=250)
 st.title("AI-Powered Classroom Inspection - ASU Edition")
 st.markdown("Welcome! Upload classroom images to automatically detect issues and generate an inspection report.")
 
+
+# -----------------------------------------------------------
+# 2.  Generate docx report
+# -----------------------------------------------------------
+
+
+def generate_docx_report(report_text, original_images, anomaly_images=None):
+    doc = Document()
+
+    # --- Title and Date ---
+    doc.add_heading('Classroom Inspection Report', 0)
+    doc.add_paragraph("Class Number: __________________")  # Leave for user to fill
+    doc.add_paragraph(f"Date: {datetime.date.today().strftime('%B %d, %Y')}")
+    doc.add_paragraph("")  # spacer
+
+    # --- Report Text ---
+    doc.add_heading('1. Inspection Summary', level=1)
+    for line in report_text.strip().split('\n'):
+        if line.strip():
+            doc.add_paragraph(line.strip(), style='List Bullet')
+
+    # --- Original Images ---
+    doc.add_heading('2. Uploaded Classroom Images', level=1)
+    for i, img_file in enumerate(original_images):
+        img = Image.open(img_file)
+        img_io = io.BytesIO()
+        img.save(img_io, format='JPEG')
+        img_io.seek(0)
+        doc.add_paragraph(f"Original Image {i+1}")
+        doc.add_picture(img_io, width=Inches(5))
+        doc.add_paragraph("")  # spacer
+
+    # --- YOLO Anomaly Images (Optional) ---
+    if anomaly_images:
+        doc.add_heading('3. YOLO Anomaly Detections', level=1)
+        for i, img in enumerate(anomaly_images):
+            img_io = io.BytesIO()
+            img.save(img_io, format='JPEG')
+            img_io.seek(0)
+            doc.add_paragraph(f"Anomaly Image {i+1}")
+            doc.add_picture(img_io, width=Inches(5))
+            doc.add_paragraph("")  # spacer
+
+    # --- Save to BytesIO for download ---
+    output_io = io.BytesIO()
+    doc.save(output_io)
+    output_io.seek(0)
+    return output_io
+
+
+
+
 # --- About Section ---
 with st.sidebar.expander("📄 About This Project"):
     # st.image("musk-photo-1.jpg", width=150, caption="Nitin Reddy Yarava")
@@ -165,9 +217,9 @@ model_choice = st.selectbox(
     help="Best uses GPT-4o; Basic uses GPT-40-mini; Expert uses the best available vision reasoning, need to add yet"
 )
 enable_yolo = st.checkbox(
-    "Enable YOLO-based anomaly detection?",
+    "Detect and highlight unusual objects?",
     value=False,
-    help="Toggle to run or skip the ultralytics YOLO object detector"
+    help="Toggle to run or skip the YOLO-based anomaly object detector"
 )
 
 model_map = {
@@ -311,6 +363,18 @@ if run_button:
 
         st.subheader("Inspection Report")
         st.markdown(report)
+        # --- Generate DOCX ---
+        docx_file = generate_docx_report(report, st.session_state.uploaded_files, anomaly_images if enable_yolo else None)
+
+        # --- Download Button ---
+        st.download_button(
+            label="📄 Download Full Report (.docx)",
+            data=docx_file,
+            file_name="classroom_inspection_report.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )
+
 
         b64 = base64.b64encode(report.encode()).decode()
         href = f'<a href="data:file/txt;base64,{b64}" download="inspection_report.txt">📥 Download Report as TXT</a>'
