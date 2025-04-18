@@ -127,11 +127,34 @@ with st.sidebar.expander("📄 About This Project"):
 
 # --- Image Upload ---
 st.subheader("Step 1: Upload Classroom Images")
+if "uploaded_files" not in st.session_state:
+    st.session_state.uploaded_files = []
+
+if "uploader_key" not in st.session_state:
+        st.session_state.uploader_key = "uploader_0"
+
 uploaded_files = st.file_uploader(
     "Upload classroom images (from different angles if possible)",
     accept_multiple_files=True,
-    type=["jpg", "jpeg", "png"]
+    type=["jpg", "jpeg", "png"],
+    key=st.session_state.uploader_key
+
 )
+
+# Append newly uploaded files
+if uploaded_files:
+    st.session_state.uploaded_files = uploaded_files
+
+
+if st.session_state.uploaded_files:
+    if st.button("🗑️ Clear Uploaded Images"):
+        st.session_state.uploaded_files = []
+        # Change the uploader key to reset the widget
+        key_id = int(st.session_state.uploader_key.split("_")[1]) + 1
+        st.session_state.uploader_key = f"uploader_{key_id}"
+        st.rerun()
+
+
 
 # --- Model Selection ---
 st.subheader("Step 2: Choose Model & Options")
@@ -175,17 +198,26 @@ def image_to_base64(image_file):
 
 def detect_anomalies(images):
     counts = {}
+    annotated_images = []
+
     for image_file in images:
         img = Image.open(image_file).convert("RGB")
         img_np = np.array(img)
         results = yolo_model(img_np)
+
         for result in results:
+            result_img = result.plot(conf=True, labels=True)
+            annotated_images.append(Image.fromarray(result_img))
+
             for box in result.boxes:
                 cls = int(box.cls[0])
                 if cls in ANOMALY_CLASSES:
                     name = ANOMALY_CLASSES[cls]
                     counts[name] = counts.get(name, 0) + 1
-    return counts
+
+    return counts, annotated_images
+
+
 
 # --- Prompt Section (Expandable) ---
 default_prompt = f"""
@@ -198,7 +230,7 @@ Use the numbered list 1 through 13. For each item, begin with the heading (e.g.,
 
 Only report issues that are clearly visible. If something is unclear, say “Cannot determine.”
 1. Side Walls (not ceiling): Scuffs, scrapes, holes, Unsure?
-2. Ceiling: Holes, stains, , Unsure etc?
+2. Ceiling: Holes, stains, Unsure etc?
 3. Board: Clean, Writings, or dirty, Unsure ?
 4. Floor: Trash, stains, frayed tiles, tears, Unsure ?
 5. No. of Bins: Count and type (gray is trash, blue is recycle), Unsure ?
@@ -207,9 +239,9 @@ Only report issues that are clearly visible. If something is unclear, say “Can
 8. Support & UCL Pocket: Present or not, Unsure ?
 9. Flag: Present or not, Unsure ?
 10. Food/Drinks Plaque: Present or not, Unsure ?
-11. Instructor Desk: Clean or any unnecessary items besides monitor, keyboard, and mouse, Unsure ?
+11. Instructor's Desk: Visible or not. if visible, clean or not ?
 12. Clock: Present or not, Unsure ?
-13. Additional Comments: Any anomalies Like broken window coverings, etc.
+13. Additional Comments: What are the Unusual Stuff found or seen in class if any?, etc.
 """
 
 with st.expander("⚙️ More Options: Edit Inspection Prompt"):
@@ -248,13 +280,13 @@ with col2:
 status = st.empty()
 
 if run_button:
-    if not uploaded_files:
+    if not st.session_state.uploaded_files:
         st.error("Please upload at least 1 image.")
     else:
         status.info("Preparing images…")
         with st.expander("📷 View uploaded images"):
-            cols = st.columns(min(len(uploaded_files), 4))
-            for i, f in enumerate(uploaded_files):
+            cols = st.columns(min(len(st.session_state.uploaded_files), 4))
+            for i, f in enumerate(st.session_state.uploaded_files):
                 with cols[i % 4]:
                     img = Image.open(f)
                     st.image(img, caption=f"Image {i+1}", use_container_width=True)
@@ -262,10 +294,17 @@ if run_button:
         anomalies = None
         if enable_yolo:
             status.info("Detecting anomalies with YOLO…")
-            anomalies = detect_anomalies(uploaded_files)
+            anomalies, annotated_images = detect_anomalies(st.session_state.uploaded_files)
+
+            with st.expander("📦 YOLO Anomaly Detections"):
+                cols = st.columns(min(len(annotated_images), 4))
+                for i, img in enumerate(annotated_images):
+                    with cols[i % 4]:
+                        st.image(img, caption=f"Detections in Image {i+1}", use_container_width=True)
+
 
         status.info("Calling AI Model…")
-        report = call_gpt_hybrid(uploaded_files, prompt, selected_model, anomalies)
+        report = call_gpt_hybrid(st.session_state.uploaded_files, prompt, selected_model, anomalies)
         status.success("Inspection report generated ✅")
 
         st.subheader("Inspection Report")
