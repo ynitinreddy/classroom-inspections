@@ -272,7 +272,7 @@ def detect_anomalies(images):
     for image_file in images:
         img = Image.open(image_file).convert("RGB")
         img_np = np.array(img)
-        results = yolo_model(img_np)
+        results = yolo_model(img_np, classes=list(ANOMALY_CLASSES.keys()))
 
         for result in results:
             result_img = result.plot(conf=True, labels=True)
