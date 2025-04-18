@@ -181,12 +181,14 @@ selected_model, model_comment = model_map[model_choice]
 if enable_yolo:
     yolo_model = load_yolo()
     ANOMALY_CLASSES = {
+        0: "person", 1: "bicycle", 24: "backpack", 25: "umbrella", 26: "handbag",
+        36: "skateboard",
         39: "bottle", 40: "wine glass", 41: "cup", 42: "fork", 43: "knife",
         44: "spoon", 45: "bowl", 46: "banana", 47: "apple", 48: "sandwich",
         49: "orange", 50: "broccoli", 51: "carrot", 52: "hot dog", 53: "pizza",
         54: "donut", 55: "cake", 61: "toilet", 63: "laptop", 67: "cell phone",
         68: "microwave", 69: "oven", 70: "toaster", 71: "sink", 72: "refrigerator",
-        73: "book", 74: "clock", 75: "vase", 76: "scissors", 77: "teddy bear",
+        73: "book", 75: "vase", 76: "scissors", 77: "teddy bear",
         78: "hair drier", 79: "toothbrush"
     }
 
@@ -316,4 +318,4 @@ if run_button:
 
 # --- Footer ---
 st.markdown("---")
-st.caption("Built by Nate, a CS student at ASU ✌️")
+st.caption("Built by Nitin, a CS student at ASU ✌️")
