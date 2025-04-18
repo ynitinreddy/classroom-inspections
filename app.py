@@ -171,9 +171,9 @@ enable_yolo = st.checkbox(
 )
 
 model_map = {
-    "Basic (faster, lower cost)": ("gpt-4-turbo", "Using basic model."),
-    "Advanced (slower, more reasoning)": ("gpt-4", "Using advanced reasoning model."),
-    "Expert (most advanced reasoning for images)": ("gpt-4o", "Using expert-level reasoning model (gpt-4-turbo with vision).")
+    "Best model (fastest, lowest cost)": ("gpt-4o", "Using best model."),
+    "Advanced (slower, more reasoning) - need to add": ("gpt-4", "Using advanced reasoning model."),
+    "Expert (most advanced reasoning for images) - need to add": ("gpt-4o", "Using expert-level reasoning model (gpt-4o).")
 }
 selected_model, model_comment = model_map[model_choice]
 
