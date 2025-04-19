@@ -105,23 +105,6 @@ streamlit run app.py
 
 ---
 
-## 📁 Folder Structure & Key Files
-
-classroom-inspector/
-│
-├── app.py                      # Main Streamlit app
-├── requirements.txt            # Python dependencies
-├── .env                        # (Optional) Local OpenAI key
-├── .streamlit/
-│   └── secrets.toml            # API keys for Streamlit Cloud
-│
-├── ASU-logo.png                # ASU branding logo (used in header)
-├── musk-photo-1.jpg            # Profile photo shown in sidebar
-│
-└── README.md                   # Project documentation (this file)
-
-> 📌 Note: You may need to manually place image files (`ASU-logo.png`, `musk-photo-1.jpg`) in the root folder.
-
 
 ## 💡 Usage Tips & Notes
 
