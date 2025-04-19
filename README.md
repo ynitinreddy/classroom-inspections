@@ -34,5 +34,15 @@ OPENAI_API_KEY=your_openai_key
 ```
 
 #### • Streamlit Cloud:
-Use the built-in secrets manager. In .streamlit/secrets.toml:
+Use the built-in secrets manager. In `.streamlit/secrets.toml`:
 
+```bash
+[secrets]
+OPENAI_API_KEY = "your_openai_key"
+```
+
+### 4. Run the app
+
+```bash
+streamlit run app.py
+```
