@@ -117,8 +117,7 @@ st.markdown("Welcome! Upload classroom images to automatically detect issues and
 # -----------------------------------------------------------
 
 
-def generate_docx_report(report_text, original_images, anomaly_images=None, class_number=None, inspector=None):
-
+def generate_docx_report(report_text, original_images, anomaly_images=None, class_number=None):
     doc = Document()
 
     # --- Title and Date ---
@@ -127,8 +126,6 @@ def generate_docx_report(report_text, original_images, anomaly_images=None, clas
         doc.add_paragraph(f"Class Number: {class_number}")
     else:
         doc.add_paragraph("Class Number: __________________")  # Leave blank if not provided
-    doc.add_paragraph(f"Inspector: {inspector or '__________________'}")
-
     doc.add_paragraph(f"Date: {datetime.date.today().strftime('%B %d, %Y')}")
     doc.add_paragraph("")  # spacer
 
@@ -164,9 +161,6 @@ def generate_docx_report(report_text, original_images, anomaly_images=None, clas
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     classroom_part = class_number.replace(" ", "_") if class_number else "Unknown"
     file_suffix = f"{today_str}_{classroom_part}_report"
-    safe_inspector = inspector.replace(' ', '_')
-    safe_class = class_number.replace(' ', '_') if class_number else "UnknownClass"
-    file_name = f"{today_str}_{safe_inspector}_{safe_class}_report.docx"
     file_name = f"{file_suffix}.docx"
 
     # --- Save to BytesIO for download ---
@@ -239,11 +233,6 @@ st.subheader("Step 1.5: Enter Class Number (Optional)")
 class_number = st.text_input(
     "If you want, enter the classroom number (e.g., 'DH 101'). This will appear in the report and file name.",
     value=""
-)
-
-inspector = st.selectbox(
-    "Select inspector:",
-    ["Nitin", "Jose", "Priyam", "Tanvi", "Others"]
 )
 
 
@@ -419,11 +408,11 @@ if run_button:
         # --- Generate DOCX ---
         # Unpack the tuple returned by generate_docx_report
         output_io, generated_file_name, local_file_path = generate_docx_report(
-            report, st.session_state.uploaded_files,
+            report,
+            st.session_state.uploaded_files,
             anomaly_images if enable_yolo else None,
-            class_number, inspector
+            class_number
         )
-
 
         # Use the generated file name (or keep your own logic)
         today_str = datetime.date.today().strftime("%Y-%m-%d")
