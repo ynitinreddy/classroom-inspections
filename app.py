@@ -110,6 +110,13 @@ img_b64 = get_image_base64("musk-photo-1.jpg")
 st.image("ASU-logo.png", width=250)
 st.title("AI-Powered Classroom Inspection - ASU Edition")
 st.markdown("Welcome! Upload classroom images to automatically detect issues and generate an inspection report.")
+# --- Remember last selected inspector and model ---
+if "selected_inspector" not in st.session_state:
+    st.session_state.selected_inspector = "Nitin"
+
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = "Best (faster, lower cost)"
+
 
 
 # -----------------------------------------------------------
@@ -230,8 +237,17 @@ if st.session_state.uploaded_files:
         st.rerun()
 
 
-# --- Step 1.5: Class Info + Inspector Dropdown ---
-st.subheader("Step 1.5: Classroom Details")
+# --- Step 1.5: Classroom Details ---
+st.subheader("Step 1.5: Classroom Details (Optional)")
+
+# Initialize persistent session defaults
+if "selected_inspector" not in st.session_state:
+    st.session_state.selected_inspector = "Nitin"
+
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = "Best (faster, lower cost)"
+
+inspector_options = ["Nitin", "Jose", "Priyam", "Tanvi", "Others"]
 
 col1, col2 = st.columns(2)
 
@@ -244,16 +260,16 @@ with col1:
 with col2:
     inspector_choice = st.selectbox(
         "Inspector Name",
-        ["Nitin", "Jose", "Priyam", "Tanvi", "Others"],
-        index=["Nitin", "Jose", "Priyam", "Tanvi", "Others"].index(st.session_state.selected_inspector),
-        key="selected_inspector"
+        inspector_options,
+        index=inspector_options.index(st.session_state.selected_inspector)
     )
+    st.session_state.selected_inspector = inspector_choice
 
-
-# If "Others", show a free text box
+# Handle custom inspector name
 inspector_name = inspector_choice
 if inspector_choice == "Others":
     inspector_name = st.text_input("Enter Inspector Name", value="")
+
 
 
 
@@ -269,9 +285,11 @@ model_choice = st.selectbox(
     "Select LLM model type:",
     model_options,
     index=model_options.index(st.session_state.selected_model),
-    key="selected_model",
     help="Best uses GPT-4o; Basic uses GPT-40-mini; Expert uses the best available vision reasoning, need to add yet"
 )
+st.session_state.selected_model = model_choice
+
+
 
 enable_yolo = st.checkbox(
     "Detect and highlight unusual objects?",
@@ -446,8 +464,10 @@ if run_button:
 
         # Use the generated file name (or keep your own logic)
         today_str = datetime.date.today().strftime("%Y-%m-%d")
-        file_suffix = f"{today_str}_{class_number.replace(' ', '_')}" if class_number else "classroom_inspection_report"
-        file_name = f"{file_suffix}.docx"
+        inspector_part = inspector_name.replace(" ", "_") if inspector_name else "Anonymous"
+        classroom_part = class_number.replace(" ", "_") if class_number else "Unknown"
+        file_name = f"{today_str}_{inspector_part}_{classroom_part}_report.docx"
+
 
         # --- Download Button ---
         st.download_button(
