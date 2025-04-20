@@ -130,11 +130,17 @@ def generate_docx_report(report_text, original_images, anomaly_images=None, clas
 
     # --- Title and Date ---
     doc.add_heading('Classroom Inspection Report', 0)
+
+    # Always add Class Number
     if class_number:
         doc.add_paragraph(f"Class Number: {class_number}")
     else:
-        doc.add_paragraph("Class Number: __________________")  # Leave blank if not provided
-        doc.add_paragraph(f"Inspector: {inspector if inspector else '__________________'}")
+        doc.add_paragraph("Class Number: __________________")
+
+    # ✅ Always add Inspector name
+    doc.add_paragraph(f"Inspector: {inspector if inspector else '__________________'}")
+
+    # Add Date
     doc.add_paragraph(f"Date: {datetime.date.today().strftime('%B %d, %Y')}")
     doc.add_paragraph("")  # spacer
 
