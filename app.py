@@ -421,7 +421,7 @@ if run_btn:
         st.error("Please upload at least one image.")
         st.stop()
 
-    # Show uploaded images
+    # 1) Show uploaded images
     status.info("Preparing images…")
     with st.expander("📷 View uploaded images"):
         cols = st.columns(min(len(st.session_state.uploaded_files), 4))
@@ -429,22 +429,46 @@ if run_btn:
             with cols[i % 4]:
                 st.image(Image.open(f), caption=f"Image {i + 1}", use_container_width=True)
 
-    # YOLO detection
-    annotated_imgs = None
-    anomalies = None
+    # 2) YOLO anomaly detection (optional)
+    anomalies = {}
+    annotated_imgs = []
     if st.session_state.enable_yolo and detect_anomalies:
         status.info("Detecting anomalies with YOLO…")
         anomalies, annotated_imgs = detect_anomalies(st.session_state.uploaded_files)
+        st.write("**Anomaly counts:**", anomalies or "No anomalies detected.")
+
         if annotated_imgs:
             with st.expander("📦 YOLO Anomaly Detections"):
                 cols = st.columns(min(len(annotated_imgs), 4))
                 for i, im in enumerate(annotated_imgs):
                     with cols[i % 4]:
                         st.image(im, caption=f"Detections {i + 1}", use_container_width=True)
-        else:
-            st.info(
-        f"Report saved locally at {local_file_path}. After reviewing and modifying, head to the 'Upload to Drive' page. Your DOCX or TXT file will be **automatically converted to PDF** and stored in Google Drive for you."
+
+    # 3) Run GPT inspection over images + anomaly summary
+    status.info("Analyzing classroom with GPT…")
+    report = call_gpt_hybrid(
+        st.session_state.uploaded_files,
+        prompt,
+        selected_model,
+        anomaly_data=anomalies if st.session_state.enable_yolo else None,
     )
+
+    # 4) Display the 13‑point inspection report
+    st.subheader("📝 Inspection Report")
+    st.markdown(report)
+
+    # 5) Generate and offer download of DOCX report
+    bio, file_name, local_file_path = generate_docx_report(
+        report,
+        st.session_state.uploaded_files,
+        anomaly_images=annotated_imgs,
+        class_number=class_number,
+        inspector_name=inspector_used,
+    )
+    st.download_button("📄 Download DOCX Report", data=bio, file_name=file_name)
+
+    status.success("All done! 🎉")
+
 
 # -----------------------------------------------------------
 # 1️⃣1️⃣  Sidebar – About
