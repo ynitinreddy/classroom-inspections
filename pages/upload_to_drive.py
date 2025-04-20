@@ -1,54 +1,50 @@
 import streamlit as st
-import os
-import re
-import tempfile
+import os, re, tempfile
+from io import BytesIO
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaIoBaseUpload, MediaFileUpload
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-# Optional conversion libs
+# ── optional local‑conversion libs ─────────────────────────────
 try:
-    from docx2pdf import convert as docx2pdf_convert  # Windows/macOS only
-except ImportError:  # Linux fallback will raise later if used
+    from docx2pdf import convert as docx2pdf_convert    # only works on Windows/macOS
+except ImportError:
     docx2pdf_convert = None
 
 try:
-    from reportlab.pdfgen import canvas
+    from reportlab.pdfgen import canvas                 # TXT → PDF
     from reportlab.lib.pagesizes import letter
 except ImportError:
-    canvas = None  # type: ignore
+    canvas = None  # TXT conversion will fail gracefully
 
-# ───────────────────────────────────────────────────────────────
-#  Streamlit page config
-# ───────────────────────────────────────────────────────────────
+# ── Streamlit page config ─────────────────────────────────────
 st.set_page_config(page_title="Upload to Google Drive", layout="wide")
 st.title("📂 Upload Reports to Google Drive")
-st.markdown("Upload modified DOCX or TXT files and they'll be converted to **PDF** and stored in Google Drive based on the filename.")
-
+st.markdown(
+    "Upload **DOCX** or **TXT** files – they’re converted to **PDF** "
+    "and stored in Google Drive under the proper classroom folder."
+)
 st.divider()
 
-# ───────────────────────────────────────────────────────────────
-#  Session‑state helpers
-# ───────────────────────────────────────────────────────────────
+# ── session‑state init ────────────────────────────────────────
 if "drive_uploaded_files" not in st.session_state:
     st.session_state.drive_uploaded_files = []
 if "drive_uploader_key" not in st.session_state:
     st.session_state.drive_uploader_key = "drive_uploader_0"
 
-# ───────────────────────────────────────────────────────────────
-#  Google Drive service
-# ───────────────────────────────────────────────────────────────
+# ── Google Drive service helper ───────────────────────────────
 @st.cache_resource
 def get_drive_service():
     creds = None
     if os.path.exists("credentials.json"):
         flow = InstalledAppFlow.from_client_secrets_file(
-            "credentials.json", scopes=["https://www.googleapis.com/auth/drive.file"]
+            "credentials.json",
+            scopes=["https://www.googleapis.com/auth/drive.file"],
         )
         creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
+        with open("token.json", "w") as tk:
+            tk.write(creds.to_json())
     elif "GOOGLE_CREDENTIALS" in st.secrets:
         creds = Credentials.from_authorized_user_info(st.secrets["GOOGLE_CREDENTIALS"])
     else:
@@ -57,152 +53,151 @@ def get_drive_service():
 
     return build("drive", "v3", credentials=creds)
 
-# ───────────────────────────────────────────────────────────────
-#  Drive folder helpers
-# ───────────────────────────────────────────────────────────────
-
-def create_folder(service, name, parent_id=None):
+# ── folder helpers ────────────────────────────────────────────
+def create_folder(svc, name, parent=None):
     meta = {"name": name, "mimeType": "application/vnd.google-apps.folder"}
-    if parent_id:
-        meta["parents"] = [parent_id]
-    folder = service.files().create(body=meta, fields="id").execute()
-    return folder.get("id")
+    if parent:
+        meta["parents"] = [parent]
+    return svc.files().create(body=meta, fields="id").execute()["id"]
 
-
-def get_or_create_folder_path(service, path: str):
-    parts = path.strip("/").split("/")
-    parent_id = None
-    for part in parts:
-        query = (
-            f"name='{part}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+def get_or_create_folder_path(svc, path):
+    parent = None
+    for part in path.strip("/").split("/"):
+        q = (
+            f"name='{part}' and mimeType='application/vnd.google-apps.folder' "
+            f"and trashed=false"
         )
-        if parent_id:
-            query += f" and '{parent_id}' in parents"
-        res = service.files().list(q=query, fields="files(id, name)").execute()
+        if parent:
+            q += f" and '{parent}' in parents"
+        res = svc.files().list(q=q, fields="files(id)").execute()
         items = res.get("files", [])
-        parent_id = items[0]["id"] if items else create_folder(service, part, parent_id)
-    return parent_id
+        parent = items[0]["id"] if items else create_folder(svc, part, parent)
+    return parent
 
-# ───────────────────────────────────────────────────────────────
-#  Filename parsing → folder path
-# ───────────────────────────────────────────────────────────────
+# ── filename → Drive path ─────────────────────────────────────
+def parse_filename(fname):
+    m = re.match(r"(\\d{4}-\\d{2}-\\d{2})_([A-Za-z0-9_]+)_report\\.(docx|txt)$", fname)
+    if not m:
+        return None
+    date, classroom, _ = m.groups()
+    y, mth, _ = date.split("-")
+    return f"Classroom_Inspections/{y}/{mth}/{classroom}"
 
-def parse_filename(filename: str):
-    # Expected: 2025-04-20_DH101_report.docx
-    m = re.match(r"(\d{4}-\d{2}-\d{2})_([A-Za-z0-9_]+)_report\.(docx|txt)$", filename)
-    if m:
-        date, classroom, _ = m.groups()
-        year, month, _ = date.split("-")
-        return f"Classroom_Inspections/{year}/{month}/{classroom}"
-    return None
-
-# ───────────────────────────────────────────────────────────────
-#  Conversion helpers
-# ───────────────────────────────────────────────────────────────
-
-def txt_to_pdf(txt_path: str, pdf_path: str):
+# ── TXT → PDF (local) ─────────────────────────────────────────
+def txt_to_pdf(txt_path, pdf_path):
     if canvas is None:
-        raise RuntimeError("reportlab is required for TXT→PDF conversion but not installed.")
+        raise RuntimeError("reportlab not available")
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
-    y = height - 72  # 1 inch margin top
+    y = height - 72
     with open(txt_path, "r", encoding="utf-8", errors="ignore") as f:
         for line in f:
-            c.drawString(72, y, line.rstrip("\n"))
+            c.drawString(72, y, line.rstrip())
             y -= 14
             if y < 72:
                 c.showPage()
                 y = height - 72
     c.save()
 
+# ── Google Drive helper uploads ───────────────────────────────
+def upload_original(svc, local_path, folder_id):
+    media = MediaFileUpload(local_path, resumable=True)
+    meta = {"name": os.path.basename(local_path), "parents": [folder_id]}
+    svc.files().create(body=meta, media_body=media).execute()
 
-def convert_to_pdf(tmp_input: str, ext: str) -> str | None:
-    """Return path to PDF if conversion succeeded, else None."""
-    tmp_pdf = tempfile.mktemp(suffix=".pdf")
-    try:
-        if ext == "docx" and docx2pdf_convert is not None:
-            docx2pdf_convert(tmp_input, tmp_pdf)
-            return tmp_pdf
-        if ext == "txt":
-            txt_to_pdf(tmp_input, tmp_pdf)
-            return tmp_pdf
-    except Exception as e:
-        st.warning(f"PDF conversion failed for {os.path.basename(tmp_input)} → {e}")
-    return None
+def export_gdoc_to_pdf(svc, file_id) -> bytes:
+    return svc.files().export_media(fileId=file_id, mimeType="application/pdf").execute()
 
-# ───────────────────────────────────────────────────────────────
-#  Upload logic
-# ───────────────────────────────────────────────────────────────
+def save_pdf_blob(svc, pdf_blob, pdf_name, folder_id):
+    fh = BytesIO(pdf_blob)
+    media = MediaIoBaseUpload(fh, mimetype="application/pdf")
+    meta = {"name": pdf_name, "parents": [folder_id]}
+    svc.files().create(body=meta, media_body=media).execute()
 
-def upload_file(service, local_path: str, drive_folder_id: str):
-    filename = os.path.basename(local_path)
-    media = MediaFileUpload(local_path, mimetype="application/pdf")
-    meta = {"name": filename, "parents": [drive_folder_id]}
-    service.files().create(body=meta, media_body=media, fields="id").execute()
-
-# ───────────────────────────────────────────────────────────────
-#  Streamlit uploader widget
-# ───────────────────────────────────────────────────────────────
-
+# ── Streamlit uploader ────────────────────────────────────────
 uploaded_files = st.file_uploader(
-    "📤 Upload DOCX or TXT reports (will convert to PDF automatically)",
+    "📤 Upload DOCX or TXT reports",
     type=["docx", "txt"],
     accept_multiple_files=True,
     key=st.session_state.drive_uploader_key,
-    help="Filename must follow YYYY-MM-DD_Classroom_report.docx format",
 )
 
 if uploaded_files:
     st.session_state.drive_uploaded_files = uploaded_files
 
 if st.session_state.drive_uploaded_files:
-    if st.button("🗑️ Clear Uploaded Files"):
+    if st.button("🗑️ Clear list"):
         st.session_state.drive_uploaded_files = []
-        new_id = int(st.session_state.drive_uploader_key.split("_")[1]) + 1
-        st.session_state.drive_uploader_key = f"drive_uploader_{new_id}"
+        kid = int(st.session_state.drive_uploader_key.split("_")[1]) + 1
+        st.session_state.drive_uploader_key = f"drive_uploader_{kid}"
         st.rerun()
 
-# ───────────────────────────────────────────────────────────────
-#  Main upload process
-# ───────────────────────────────────────────────────────────────
+# ── main loop ─────────────────────────────────────────────────
 if st.session_state.drive_uploaded_files:
-    service = get_drive_service()
-    if service is None:
+    svc = get_drive_service()
+    if svc is None:
         st.stop()
 
-    for file in st.session_state.drive_uploaded_files:
-        folder_path = parse_filename(file.name)
-        if not folder_path:
-            st.warning(f"⚠️ Filename `{file.name}` does not match expected format. Please rename and try again.")
+    for uf in st.session_state.drive_uploaded_files:
+        path = parse_filename(uf.name)
+        if not path:
+            st.warning(f"⚠️ Filename `{uf.name}` doesn’t match convention.")
             continue
 
-        st.markdown(f"📁 Detected Folder: `{folder_path}`")
-        dest_folder_id = get_or_create_folder_path(service, folder_path)
+        st.markdown(f"**Folder** → `{path}`")
+        folder_id = get_or_create_folder_path(svc, path)
 
-        # Save uploaded file to a temporary location first
-        ext = file.name.split(".")[-1].lower()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp_in:
-            tmp_in.write(file.read())
-            tmp_in.flush()
-            tmp_input_path = tmp_in.name
+        ext = uf.name.rsplit(".", 1)[1].lower()
+        pdf_name = uf.name.rsplit(".", 1)[0] + ".pdf"
 
-        pdf_path = convert_to_pdf(tmp_input_path, ext)
-        if pdf_path is None:
-            st.error(f"Failed to convert `{file.name}` to PDF. Uploading original file instead.")
-            # Upload original file
-            media = MediaFileUpload(tmp_input_path, mimetype="application/octet-stream")
-            meta = {"name": file.name, "parents": [dest_folder_id]}
-            service.files().create(body=meta, media_body=media, fields="id").execute()
-            os.unlink(tmp_input_path)
-            continue
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
+            tmp.write(uf.read())
+            tmp.flush()
+            local_in = tmp.name
 
-        pdf_filename = os.path.basename(pdf_path)
-        upload_file(service, pdf_path, dest_folder_id)
-        st.success(f"✅ Uploaded `{pdf_filename}` to Google Drive in `{folder_path}`")
+        pdf_blob = None
 
-        # Clean up temp files
-        os.unlink(tmp_input_path)
-        os.unlink(pdf_path)
+        # ── local attempt ──────────────────────────────────────
+        try:
+            if ext == "docx" and docx2pdf_convert and os.name != "posix":
+                tmp_pdf = tempfile.mktemp(suffix=".pdf")
+                docx2pdf_convert(local_in, tmp_pdf)
+                pdf_blob = open(tmp_pdf, "rb").read()
+                os.unlink(tmp_pdf)
+            elif ext == "txt":
+                tmp_pdf = tempfile.mktemp(suffix=".pdf")
+                txt_to_pdf(local_in, tmp_pdf)
+                pdf_blob = open(tmp_pdf, "rb").read()
+                os.unlink(tmp_pdf)
+        except Exception as e:
+            st.info(f"Local conversion failed: {e}")
+
+        # ── Google‑Drive fallback for DOCX ─────────────────────
+        if pdf_blob is None and ext == "docx":
+            meta = {
+                "name": uf.name,
+                "mimeType": "application/vnd.google-apps.document",
+                "parents": [folder_id],
+            }
+            media = MediaFileUpload(
+                local_in,
+                mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+            gdoc_id = svc.files().create(body=meta, media_body=media, fields="id").execute()["id"]
+            try:
+                pdf_blob = export_gdoc_to_pdf(svc, gdoc_id)
+            except Exception as e:
+                st.error(f"Drive conversion failed: {e}")
+
+        # ── upload result ─────────────────────────────────────
+        if pdf_blob:
+            save_pdf_blob(svc, pdf_blob, pdf_name, folder_id)
+            st.success(f"✅ Uploaded `{pdf_name}`")
+        else:
+            upload_original(svc, local_in, folder_id)
+            st.warning(f"Uploaded original `{uf.name}` (no PDF generated)")
+
+        os.unlink(local_in)
 
 st.markdown("---")
 st.caption("Built by Nitin, a CS student at ASU ✌️")
