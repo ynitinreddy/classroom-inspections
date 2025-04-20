@@ -6,6 +6,8 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+import subprocess
+import shutil
 
 # Optional conversion libs
 try:
@@ -118,11 +120,27 @@ def txt_to_pdf(txt_path: str, pdf_path: str):
 
 def convert_to_pdf(tmp_input: str, ext: str) -> str | None:
     """Return path to PDF if conversion succeeded, else None."""
-    tmp_pdf = tempfile.mktemp(suffix=".pdf")
+    tmp_dir = tempfile.mkdtemp()
+    tmp_pdf = os.path.join(
+        tmp_dir, os.path.splitext(os.path.basename(tmp_input))[0] + ".pdf"
+    )
     try:
+        # Windows/macOS
         if ext == "docx" and docx2pdf_convert is not None:
             docx2pdf_convert(tmp_input, tmp_pdf)
             return tmp_pdf
+        # Linux fallback via LibreOffice
+        if ext == "docx" and docx2pdf_convert is None:
+            if shutil.which("soffice"):
+                subprocess.run(
+                    ["soffice", "--headless", "--convert-to", "pdf", "--outdir", tmp_dir, tmp_input],
+                    check=True,
+                )
+                if os.path.exists(tmp_pdf):
+                    return tmp_pdf
+            else:
+                st.warning("LibreOffice (`soffice`) not found; cannot convert DOCX → PDF.")
+        # TXT → PDF
         if ext == "txt":
             txt_to_pdf(tmp_input, tmp_pdf)
             return tmp_pdf
@@ -189,7 +207,6 @@ if st.session_state.drive_uploaded_files:
         pdf_path = convert_to_pdf(tmp_input_path, ext)
         if pdf_path is None:
             st.error(f"Failed to convert `{file.name}` to PDF. Uploading original file instead.")
-            # Upload original file
             media = MediaFileUpload(tmp_input_path, mimetype="application/octet-stream")
             meta = {"name": file.name, "parents": [dest_folder_id]}
             service.files().create(body=meta, media_body=media, fields="id").execute()
@@ -198,11 +215,11 @@ if st.session_state.drive_uploaded_files:
 
         pdf_filename = os.path.basename(pdf_path)
         upload_file(service, pdf_path, dest_folder_id)
-        st.success(f"✅ Uploaded `{pdf_filename}` to Google Drive in `{folder_path}`")
-
-        # Clean up temp files
+        st.markdown(f"✅ **{pdf_filename}** uploaded to `{folder_path}`")
         os.unlink(tmp_input_path)
         os.unlink(pdf_path)
+
+
 
 st.markdown("---")
 st.caption("Built by Nitin, a CS student at ASU ✌️")
