@@ -237,17 +237,8 @@ if st.session_state.uploaded_files:
         st.rerun()
 
 
-# --- Step 1.5: Classroom Details ---
-st.subheader("Step 1.5: Classroom Details (Optional)")
-
-# Initialize persistent session defaults
-if "selected_inspector" not in st.session_state:
-    st.session_state.selected_inspector = "Nitin"
-
-if "selected_model" not in st.session_state:
-    st.session_state.selected_model = "Best (faster, lower cost)"
-
-inspector_options = ["Nitin", "Jose", "Priyam", "Tanvi", "Others"]
+# --- Step 1.5: Class Info + Inspector Dropdown ---
+st.subheader("Step 1.5: Classroom Details")
 
 col1, col2 = st.columns(2)
 
@@ -257,6 +248,8 @@ with col1:
         value=""
     )
 
+inspector_options = ["Nitin", "Jose", "Priyam", "Tanvi", "Others"]
+
 with col2:
     inspector_choice = st.selectbox(
         "Inspector Name",
@@ -264,12 +257,13 @@ with col2:
         index=inspector_options.index(st.session_state.selected_inspector)
     )
     st.session_state.selected_inspector = inspector_choice
+    
 
-# Handle custom inspector name
+
+# If "Others", show a free text box
 inspector_name = inspector_choice
 if inspector_choice == "Others":
     inspector_name = st.text_input("Enter Inspector Name", value="")
-
 
 
 
@@ -288,7 +282,6 @@ model_choice = st.selectbox(
     help="Best uses GPT-4o; Basic uses GPT-40-mini; Expert uses the best available vision reasoning, need to add yet"
 )
 st.session_state.selected_model = model_choice
-
 
 
 enable_yolo = st.checkbox(
