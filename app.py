@@ -142,7 +142,7 @@ if run:
 
     st.subheader("Inspection Report"); st.markdown(report)
     bio,doc_name=build_docx(report,imgs,annot,class_no,inspector_final)
-    st.download_button("📄 Download DOCX",data=bio,file_name=doc
+    st.download_button("📄 Download DOCX",data=bio,file_name=doc)
 
 
 # -----------------------------------------------------------
