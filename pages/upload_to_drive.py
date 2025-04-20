@@ -121,15 +121,16 @@ def txt_to_pdf(txt_path: str, pdf_path: str):
 def convert_to_pdf(tmp_input: str, ext: str) -> str | None:
     """Return path to PDF if conversion succeeded, else None."""
     tmp_dir = tempfile.mkdtemp()
-    tmp_pdf = os.path.join(
-        tmp_dir, os.path.splitext(os.path.basename(tmp_input))[0] + ".pdf"
-    )
+    pdf_name = os.path.splitext(os.path.basename(tmp_input))[0] + ".pdf"
+    tmp_pdf = os.path.join(tmp_dir, pdf_name)
+
     try:
-        # Windows/macOS
+        # 1) Windows/macOS
         if ext == "docx" and docx2pdf_convert is not None:
             docx2pdf_convert(tmp_input, tmp_pdf)
             return tmp_pdf
-        # Linux fallback via LibreOffice
+
+        # 2) Linux fallback: LibreOffice
         if ext == "docx" and docx2pdf_convert is None:
             if shutil.which("soffice"):
                 subprocess.run(
@@ -138,16 +139,23 @@ def convert_to_pdf(tmp_input: str, ext: str) -> str | None:
                 )
                 if os.path.exists(tmp_pdf):
                     return tmp_pdf
-            else:
-                st.warning("LibreOffice (`soffice`) not found; cannot convert DOCX → PDF.")
-        # TXT → PDF
+            # 3) Secondary fallback: unoconv
+            if shutil.which("unoconv"):
+                subprocess.run(
+                    ["unoconv", "-f", "pdf", "-o", tmp_dir, tmp_input],
+                    check=True,
+                )
+                if os.path.exists(tmp_pdf):
+                    return tmp_pdf
+
+        # 4) TXT → PDF
         if ext == "txt":
             txt_to_pdf(tmp_input, tmp_pdf)
             return tmp_pdf
+
     except Exception as e:
         st.warning(f"PDF conversion failed for {os.path.basename(tmp_input)} → {e}")
     return None
-
 # ───────────────────────────────────────────────────────────────
 #  Upload logic
 # ───────────────────────────────────────────────────────────────
@@ -206,7 +214,7 @@ if st.session_state.drive_uploaded_files:
 
         pdf_path = convert_to_pdf(tmp_input_path, ext)
         if pdf_path is None:
-            st.error(f"Failed to convert `{file.name}` to PDF. Uploading original file instead.")
+            st.error(f"❌ Failed to convert `{file.name}` to PDF; uploading original.")
             media = MediaFileUpload(tmp_input_path, mimetype="application/octet-stream")
             meta = {"name": file.name, "parents": [dest_folder_id]}
             service.files().create(body=meta, media_body=media, fields="id").execute()
@@ -215,10 +223,10 @@ if st.session_state.drive_uploaded_files:
 
         pdf_filename = os.path.basename(pdf_path)
         upload_file(service, pdf_path, dest_folder_id)
+        # show a tick next to the uploaded file
         st.markdown(f"✅ **{pdf_filename}** uploaded to `{folder_path}`")
         os.unlink(tmp_input_path)
         os.unlink(pdf_path)
-
 
 
 st.markdown("---")
