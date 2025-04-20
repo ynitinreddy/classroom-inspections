@@ -134,8 +134,11 @@ if uploaded_files:
 if st.session_state.drive_uploaded_files:
     if st.button("🗑️ Clear list"):
         st.session_state.drive_uploaded_files = []
-        kid = int(st.session_state.drive_uploader_key.split("_")[1]) + 1
+        # drive_uploader_key is like "drive_uploader_3".
+        # Take the FINAL chunk, not the second one (robust if name ever changes).
+        kid = int(st.session_state.drive_uploader_key.split("_")[-1]) + 1
         st.session_state.drive_uploader_key = f"drive_uploader_{kid}"
+
         st.rerun()
 
 # ── main loop ─────────────────────────────────────────────────
