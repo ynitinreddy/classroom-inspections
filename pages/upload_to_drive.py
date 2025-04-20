@@ -75,13 +75,19 @@ def get_or_create_folder_path(svc, path):
     return parent
 
 # ── filename → Drive path ─────────────────────────────────────
-def parse_filename(fname):
-    m = re.match(r"(\\d{4}-\\d{2}-\\d{2})_([A-Za-z0-9_]+)_report\\.(docx|txt)$", fname)
+def parse_filename(fname: str):
+    # Accepts: YYYY-MM-DD_Inspector_Classroom_report.docx  (or .txt)
+    m = re.match(
+        r"(\\d{4}-\\d{2}-\\d{2})_([A-Za-z0-9_]+)_([A-Za-z0-9_]+)_report\\.(docx|txt)$",
+        fname,
+    )
     if not m:
         return None
-    date, classroom, _ = m.groups()
-    y, mth, _ = date.split("-")
-    return f"Classroom_Inspections/{y}/{mth}/{classroom}"
+    date, inspector, classroom, _ = m.groups()
+    year, month, _ = date.split("-")
+    subfolder = f"{inspector}_{classroom}"  # e.g. Nitin_DH_101
+    return f"Classroom_Inspections/{year}/{month}/{subfolder}"
+
 
 # ── TXT → PDF (local) ─────────────────────────────────────────
 def txt_to_pdf(txt_path, pdf_path):
