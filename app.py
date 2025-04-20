@@ -245,9 +245,13 @@ if st.session_state.uploaded_files:
     if st.button("🗑️ Clear Uploaded Images"):
         st.session_state.uploaded_files = []
         # Change the uploader key to reset the widget
-        key_id = int(st.session_state.uploader_key.split("_")[1]) + 1
-        st.session_state.uploader_key = f"uploader_{key_id}"
-        st.rerun()
+    try:
+        key_id = int(st.session_state.drive_uploader_key.split("_")[-1])
+    except ValueError:
+        key_id = 0  # default fallback if it’s invalid
+    st.session_state.drive_uploader_key = f"drive_uploader_{key_id + 1}"
+
+    st.rerun()
 
 
 # --- Step 1.5: Class Info + Inspector Dropdown ---
