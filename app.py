@@ -110,12 +110,18 @@ img_b64 = get_image_base64("musk-photo-1.jpg")
 st.image("ASU-logo.png", width=250)
 st.title("AI-Powered Classroom Inspection - ASU Edition")
 st.markdown("Welcome! Upload classroom images to automatically detect issues and generate an inspection report.")
-# --- Remember last selected inspector and model ---
+
+# --- Remember user selections across reruns ---
+
 if "selected_inspector" not in st.session_state:
     st.session_state.selected_inspector = "Nitin"
 
 if "selected_model" not in st.session_state:
-    st.session_state.selected_model = "Best (faster, lower cost)"
+    st.session_state.selected_model = "Basic (fastest, cheapest)"  # default
+
+if "enable_yolo_opt" not in st.session_state:
+    st.session_state.enable_yolo_opt = True  # default ON
+
 
 
 
@@ -263,6 +269,7 @@ with col2:
         index=inspector_options.index(st.session_state.selected_inspector)
     )
     st.session_state.selected_inspector = inspector_choice
+
     
 
 
@@ -270,6 +277,7 @@ with col2:
 inspector_name = inspector_choice
 if inspector_choice == "Others":
     inspector_name = st.text_input("Enter Inspector Name", value="")
+
 
 
 
@@ -290,11 +298,14 @@ model_choice = st.selectbox(
 st.session_state.selected_model = model_choice
 
 
+
 enable_yolo = st.checkbox(
     "Detect and highlight unusual objects?",
-    value=True,
+    value=st.session_state.enable_yolo_opt,
     help="Toggle to run or skip the YOLO-based anomaly object detector"
 )
+st.session_state.enable_yolo_opt = enable_yolo
+
 
 model_map = {
     "Best (faster, lower cost)": ("gpt-4o", "Using best model."),
