@@ -181,8 +181,9 @@ def generate_docx_report(report_text, original_images, anomaly_images=None, clas
     # --- Generate Filename ---
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     classroom_part = class_number.replace(" ", "_") if class_number else "Unknown"
-    file_suffix = f"{today_str}_{classroom_part}_report"
-    file_name = f"{file_suffix}.docx"
+    inspector_part = inspector.replace(" ", "_") if inspector else "Anonymous"
+    file_name = f"{today_str}_{inspector_part}_{classroom_part}_report.docx"
+
 
     # --- Save to BytesIO for download ---
     output_io = io.BytesIO()
