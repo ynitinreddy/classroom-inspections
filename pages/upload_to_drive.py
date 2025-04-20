@@ -8,6 +8,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 import subprocess
 import shutil
+import pypandoc
+
 
 # Optional conversion libs
 try:
@@ -120,42 +122,19 @@ def txt_to_pdf(txt_path: str, pdf_path: str):
 
 def convert_to_pdf(tmp_input: str, ext: str) -> str | None:
     """Return path to PDF if conversion succeeded, else None."""
-    tmp_dir = tempfile.mkdtemp()
-    pdf_name = os.path.splitext(os.path.basename(tmp_input))[0] + ".pdf"
-    tmp_pdf = os.path.join(tmp_dir, pdf_name)
-
+    tmp_pdf = tempfile.mktemp(suffix=".pdf")
     try:
-        # 1) Windows/macOS
-        if ext == "docx" and docx2pdf_convert is not None:
-            docx2pdf_convert(tmp_input, tmp_pdf)
+        if ext == "docx":
+            # requires 'pandoc' installed on your system
+            pypandoc.convert_file(tmp_input, 'pdf', outputfile=tmp_pdf)
             return tmp_pdf
-
-        # 2) Linux fallback: LibreOffice
-        if ext == "docx" and docx2pdf_convert is None:
-            if shutil.which("soffice"):
-                subprocess.run(
-                    ["soffice", "--headless", "--convert-to", "pdf", "--outdir", tmp_dir, tmp_input],
-                    check=True,
-                )
-                if os.path.exists(tmp_pdf):
-                    return tmp_pdf
-            # 3) Secondary fallback: unoconv
-            if shutil.which("unoconv"):
-                subprocess.run(
-                    ["unoconv", "-f", "pdf", "-o", tmp_dir, tmp_input],
-                    check=True,
-                )
-                if os.path.exists(tmp_pdf):
-                    return tmp_pdf
-
-        # 4) TXT → PDF
         if ext == "txt":
             txt_to_pdf(tmp_input, tmp_pdf)
             return tmp_pdf
-
     except Exception as e:
         st.warning(f"PDF conversion failed for {os.path.basename(tmp_input)} → {e}")
     return None
+
 # ───────────────────────────────────────────────────────────────
 #  Upload logic
 # ───────────────────────────────────────────────────────────────
