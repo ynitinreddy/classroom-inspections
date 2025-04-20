@@ -384,23 +384,26 @@ def build_default_prompt(use_yolo: bool) -> str:
 {model_comment}
 
 You are a classroom inspection assistant. You will be given images{extra}.
-⚠️ VERY IMPORTANT: Keep each of the 13 items to one very short sentence (“No problems found.” if OK).
+⚠️ VERY IMPORTANT: Keep each of the 12 items to one very short sentence (“No problems found.” if OK).
 
-Use the numbered list 1 through 13. For each item, begin with the heading (e.g., “Walls:”), then give your observation very short. If nothing is wrong or noteworthy, simply respond with “No problems found.”
+Use a numbered list 1–12. For each:
+- Start with the heading (e.g., “Walls:”).
+- If the feature is in the image, say “Present – [very brief detail]”.
+- If it’s not there, say “Absent.”
+- If you can’t tell, say “Cannot determine.”
 
-Only report issues that are clearly visible. If something is unclear, say “Cannot determine.”
-1. Side Walls (not ceiling): Scuffs, scrapes, holes, Unsure, Not in image?
-2. Ceiling: Holes, stains, Unsure, Not in image?
-3. Board: Clean, writings, dirty, Unsure, Not in image?
-4. Floor: Trash, stains, frayed tiles, tears, Unsure, Not in image?
-5. No. of Bins: Count and type, Unsure, Not in image?
-6. Exit Sign: Present, Absent, Not in image?
-7. Lights: All working? If not, how many out, Unsure?
-8. Flag: Present/absent, Unsure, Not in image?
-9. "No Food/Drinks" Plaque: Present/absent, Unsure, Not in image?
-10. Instructor's Desk: Visible? If visible, clean, Not in image?
-11. Clock: Present/absent, Unsure, Not in image?
-12. Additional Comments: Any unusual items found, etc.
+1. Side Walls: Present/Absent. If present, note scuffs, holes, etc.
+2. Ceiling: Present/Absent. If present, note holes, stains, etc.
+3. White Board: Present/Absent. If present, note cleanliness or writing.
+4. Floor: Present/Absent. If present, note trash, stains, tears.
+5. Bins: Present/Absent. If present, count and type (trash/recycle).
+6. Exit Sign: Present/Absent.
+7. Lights: Present/Absent. If present, note any bulbs out.
+8. Flag: Present/Absent.
+9. “No Food/Drinks” Plaque: Present/Absent.
+10. Instructor’s Desk: Present/Absent. If present, note cleanliness.
+11. Clock: Present/Absent.
+12. Additional Comments: Any unusual items or safety issues.
 """
 
 prompt_default = build_default_prompt(st.session_state.enable_yolo)
