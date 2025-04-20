@@ -122,7 +122,7 @@ def call_gpt_hybrid(images, prompt, model, anomaly_data=None):
         model=model,
         messages=[{"role": "user", "content": blocks}],
         max_tokens=1000,
-        temperature=0.2,
+        temperature=0.3,
         top_p=0.8,
     )
     return resp.choices[0].message.content
