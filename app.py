@@ -10,14 +10,16 @@ from docx.shared import Inches
 import datetime
 torch.classes.__path__ = []
 
-if "OPENAI_API_KEY" in st.secrets:          # Streamlit Cloud path
-    openai.api_key = st.secrets["OPENAI_API_KEY"]
-else:                                       # local dev path
-    from dotenv import load_dotenv
-    load_dotenv(dotenv_path=r"C:\Users\yniti\Downloads\classroom_inspector_api_key.env")
-    openai.api_key = os.getenv("OPENAI_API_KEY")
+# if "OPENAI_API_KEY" in st.secrets:          # Streamlit Cloud path
+#     openai.api_key = st.secrets["OPENAI_API_KEY"]
+# else:                                       # local dev path
+#     from dotenv import load_dotenv
+#     load_dotenv(dotenv_path=r"C:\Users\yniti\Downloads\classroom_inspector_api_key.env")
+#     openai.api_key = os.getenv("OPENAI_API_KEY")
 
-
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=r"C:\Users\yniti\Downloads\classroom_inspector_api_key.env")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Load the .env from a custom path
 # load_dotenv(dotenv_path=r"C:\Users\yniti\Downloads\classroom_inspector_api_key.env")
@@ -116,7 +118,6 @@ st.markdown("Welcome! Upload classroom images to automatically detect issues and
 
 
 def generate_docx_report(report_text, original_images, anomaly_images=None, class_number=None):
-
     doc = Document()
 
     # --- Title and Date ---
@@ -125,7 +126,6 @@ def generate_docx_report(report_text, original_images, anomaly_images=None, clas
         doc.add_paragraph(f"Class Number: {class_number}")
     else:
         doc.add_paragraph("Class Number: __________________")  # Leave blank if not provided
-  # Leave for user to fill
     doc.add_paragraph(f"Date: {datetime.date.today().strftime('%B %d, %Y')}")
     doc.add_paragraph("")  # spacer
 
@@ -157,12 +157,25 @@ def generate_docx_report(report_text, original_images, anomaly_images=None, clas
             doc.add_picture(img_io, width=Inches(5))
             doc.add_paragraph("")  # spacer
 
+    # --- Generate Filename ---
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    classroom_part = class_number.replace(" ", "_") if class_number else "Unknown"
+    file_suffix = f"{today_str}_{classroom_part}_report"
+    file_name = f"{file_suffix}.docx"
+
     # --- Save to BytesIO for download ---
     output_io = io.BytesIO()
     doc.save(output_io)
     output_io.seek(0)
-    return output_io
 
+    # --- Save to Local Temporary Folder ---
+    os.makedirs("temp_reports", exist_ok=True)  # Create temp_reports folder if it doesn't exist
+    local_file_path = os.path.join("temp_reports", file_name)
+    with open(local_file_path, "wb") as f:
+        doc.save(f)
+
+    # --- Return BytesIO and Filename ---
+    return output_io, file_name, local_file_path
 
 
 
@@ -417,6 +430,8 @@ if run_button:
         b64 = base64.b64encode(report.encode()).decode()
         href = f'<a href="data:file/txt;base64,{b64}" download="inspection_report.txt">📥 Download Report as TXT</a>'
         st.markdown(href, unsafe_allow_html=True)
+
+        st.info("Reports saved locally. After reviewing and modifying, go to the 'Upload to Drive' page to upload them to Google Drive.")
 
 # --- Footer ---
 st.markdown("---")
