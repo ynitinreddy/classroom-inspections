@@ -300,8 +300,8 @@ enable_yolo_checkbox = st.checkbox(
     key="enable_yolo",
 )
 
-# After widgets, local variables for convenience
-st.session_state.enable_yolo = enable_yolo_checkbox  # ensure key exists
+# After widgets, capture the current selections without touching their keys
+enable_yolo = st.session_state.enable_yolo  # current checkbox state
 
 # -----------------------------------------------------------
 # 8️⃣  Model Mapping & YOLO Init (lazy)
