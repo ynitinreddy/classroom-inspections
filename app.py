@@ -8,7 +8,7 @@ import torch
 from docx import Document
 from docx.shared import Inches
 import datetime
-torch.classes.__path__ = []
+# torch.classes.__path__ = []
 
 if "OPENAI_API_KEY" in st.secrets:          # Streamlit Cloud path
     openai.api_key = st.secrets["OPENAI_API_KEY"]
