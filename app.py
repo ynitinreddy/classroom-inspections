@@ -117,7 +117,8 @@ st.markdown("Welcome! Upload classroom images to automatically detect issues and
 # -----------------------------------------------------------
 
 
-def generate_docx_report(report_text, original_images, anomaly_images=None, class_number=None):
+def generate_docx_report(report_text, original_images, anomaly_images=None, class_number=None, inspector=None):
+
     doc = Document()
 
     # --- Title and Date ---
@@ -126,6 +127,7 @@ def generate_docx_report(report_text, original_images, anomaly_images=None, clas
         doc.add_paragraph(f"Class Number: {class_number}")
     else:
         doc.add_paragraph("Class Number: __________________")  # Leave blank if not provided
+        doc.add_paragraph(f"Inspector: {inspector if inspector else '__________________'}")
     doc.add_paragraph(f"Date: {datetime.date.today().strftime('%B %d, %Y')}")
     doc.add_paragraph("")  # spacer
 
@@ -228,12 +230,29 @@ if st.session_state.uploaded_files:
         st.rerun()
 
 
-# --- Optional Class Number Input ---
-st.subheader("Step 1.5: Enter Class Number (Optional)")
-class_number = st.text_input(
-    "If you want, enter the classroom number (e.g., 'DH 101'). This will appear in the report and file name.",
-    value=""
-)
+# --- Step 1.5: Class Info + Inspector Dropdown ---
+st.subheader("Step 1.5: Classroom Details")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    class_number = st.text_input(
+        "Classroom Number (e.g., 'DH 101')",
+        value=""
+    )
+
+with col2:
+    inspector_choice = st.selectbox(
+        "Inspector Name",
+        ["Nitin", "Jose", "Priyam", "Tanvi", "Others"],
+        index=0
+    )
+
+# If "Others", show a free text box
+inspector_name = inspector_choice
+if inspector_choice == "Others":
+    inspector_name = st.text_input("Enter Inspector Name", value="")
+
 
 
 
@@ -411,8 +430,10 @@ if run_button:
             report,
             st.session_state.uploaded_files,
             anomaly_images if enable_yolo else None,
-            class_number
+            class_number,
+            inspector=inspector_name
         )
+
 
         # Use the generated file name (or keep your own logic)
         today_str = datetime.date.today().strftime("%Y-%m-%d")
