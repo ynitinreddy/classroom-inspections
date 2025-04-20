@@ -16,22 +16,20 @@ st.markdown("Upload modified DOCX or TXT files, and they will be stored in Googl
 @st.cache_resource
 def get_drive_service():
     creds = None
-    # For local development
-    if os.path.exists("credentials.json"):
-        flow = InstalledAppFlow.from_client_secrets_file(
-            "credentials.json",
-            scopes=["https://www.googleapis.com/auth/drive.file"]
-        )
-        creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-    elif "GOOGLE_CREDENTIALS" in st.secrets:
-        # For Streamlit Cloud
-        creds = Credentials.from_authorized_user_info(st.secrets["GOOGLE_CREDENTIALS"])
-    else:
-        st.error("Google Drive credentials not found.")
-        return None
-    
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", ["https://www.googleapis.com/auth/drive.file"])
+    if not creds or not creds.valid:
+        if os.path.exists("credentials.json"):
+            flow = InstalledAppFlow.from_client_secrets_file(
+                "credentials.json",
+                scopes=["https://www.googleapis.com/auth/drive.file"]
+            )
+            creds = flow.run_local_server(port=0)
+            with open("token.json", "w") as token:
+                token.write(creds.to_json())
+        else:
+            st.error("credentials.json not found. Please add it to the project directory.")
+            return None
     return build("drive", "v3", credentials=creds)
 
 # --- Folder Creation Logic ---
@@ -49,13 +47,11 @@ def get_or_create_folder_path(service, path):
     folders = path.strip("/").split("/")
     parent_id = None
     for folder_name in folders:
-        # Search for existing folder
         query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
         if parent_id:
             query += f" and '{parent_id}' in parents"
         results = service.files().list(q=query, fields="files(id, name)").execute()
         files = results.get("files", [])
-        
         if files:
             parent_id = files[0]["id"]
         else:
@@ -70,7 +66,6 @@ def upload_file(service, file, folder_id):
 
 # --- Filename Parsing Logic ---
 def parse_filename(filename):
-    # Expected format: YYYY-MM-DD_classroom-number_report.(docx|txt)
     pattern = r"(\d{4}-\d{2}-\d{2})_([A-Za-z0-9]+)_report\.(docx|txt)"
     match = re.match(pattern, filename)
     if match:
@@ -79,18 +74,43 @@ def parse_filename(filename):
         return f"Classroom_Inspections/{year}/{month}/{classroom}"
     return None
 
-# --- UI ---
+# --- UI: File Uploader with Clear Option ---
+st.subheader("Upload Modified Files")
+
+# Initialize session state for uploaded files and uploader key
+if "uploaded_drive_files" not in st.session_state:
+    st.session_state.uploaded_drive_files = []
+
+if "drive_uploader_key" not in st.session_state:
+    st.session_state.drive_uploader_key = "drive_uploader_0"
+
+# File uploader
 uploaded_files = st.file_uploader(
     "Upload modified DOCX or TXT files",
     accept_multiple_files=True,
     type=["docx", "txt"],
-    help="Files should follow the naming convention: YYYY-MM-DD_classroom-number_report.(docx|txt)"
+    help="Files should follow the naming convention: YYYY-MM-DD_classroom-number_report.(docx|txt)",
+    key=st.session_state.drive_uploader_key
 )
 
+# Append newly uploaded files
 if uploaded_files:
+    st.session_state.uploaded_drive_files = uploaded_files
+
+# Clear uploaded files button
+if st.session_state.uploaded_drive_files:
+    if st.button("🗑️ Clear Uploaded Files"):
+        st.session_state.uploaded_drive_files = []
+        # Change the uploader key to reset the widget
+        key_id = int(st.session_state.drive_uploader_key.split("_")[2]) + 1
+        st.session_state.drive_uploader_key = f"drive_uploader_{key_id}"
+        st.rerun()
+
+# --- File Upload Logic ---
+if st.session_state.uploaded_drive_files:
     service = get_drive_service()
     if service:
-        for file in uploaded_files:
+        for file in st.session_state.uploaded_drive_files:
             folder_path = parse_filename(file.name)
             if folder_path:
                 st.write(f"Detected folder path for {file.name}: {folder_path}")
