@@ -389,19 +389,18 @@ You are a classroom inspection assistant. You will be given images{extra}.
 Use the numbered list 1 through 13. For each item, begin with the heading (e.g., “Walls:”), then give your observation very short. If nothing is wrong or noteworthy, simply respond with “No problems found.”
 
 Only report issues that are clearly visible. If something is unclear, say “Cannot determine.”
-1. Side Walls (not ceiling): Scuffs, scrapes, holes, Unsure?
-2. Ceiling: Holes, stains, Unsure?
-3. Board: Clean, writings, dirty, Unsure?
-4. Floor: Trash, stains, frayed tiles, tears, Unsure?
-5. No. of Bins: Count and type (gray=trash, blue=recycle), Unsure?
-6. Capacity Sign: Present/absent? If present, show number, Unsure.
+1. Side Walls (not ceiling): Scuffs, scrapes, holes, Unsure, Not in image?
+2. Ceiling: Holes, stains, Unsure, Not in image?
+3. Board: Clean, writings, dirty, Unsure, Not in image?
+4. Floor: Trash, stains, frayed tiles, tears, Unsure, Not in image?
+5. No. of Bins: Count and type, Unsure, Not in image?
+6. Exit Sign: Present, Absent, Not in image?
 7. Lights: All working? If not, how many out, Unsure?
-8. Support & UCL Pocket: Present/absent, Unsure?
-9. Flag: Present/absent, Unsure?
-10. Food/Drinks Plaque: Present/absent, Unsure?
-11. Instructor's Desk: Visible? If visible, clean?
-12. Clock: Present/absent, Unsure?
-13. Additional Comments: Any unusual items found, etc.
+8. Flag: Present/absent, Unsure, Not in image?
+9. "No Food/Drinks" Plaque: Present/absent, Unsure, Not in image?
+10. Instructor's Desk: Visible? If visible, clean, Not in image?
+11. Clock: Present/absent, Unsure, Not in image?
+12. Additional Comments: Any unusual items found, etc.
 """
 
 prompt_default = build_default_prompt(st.session_state.enable_yolo)
