@@ -292,7 +292,7 @@ st.session_state.selected_model = model_choice
 
 enable_yolo = st.checkbox(
     "Detect and highlight unusual objects?",
-    value=False,
+    value=True,
     help="Toggle to run or skip the YOLO-based anomaly object detector"
 )
 
