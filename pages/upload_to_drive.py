@@ -110,12 +110,12 @@ if st.session_state.drive_uploaded_files:
         for file in st.session_state.drive_uploaded_files:
             folder_path = parse_filename(file.name)
             if folder_path:
-                st.markdown(f"📁 Detected Folder: `{folder_path}`")
+                st.markdown(f"📁 Detected Folder: {folder_path}")
                 folder_id = get_or_create_folder_path(service, folder_path)
                 upload_file(service, file, folder_id)
-                st.success(f"✅ Uploaded `{file.name}` to Google Drive in `{folder_path}`")
+                st.success(f"✅ Uploaded {file.name} to Google Drive in {folder_path}")
             else:
-                st.warning(f"⚠️ Filename `{file.name}` does not match expected format. Please rename and try again.")
+                st.warning(f"⚠️ Filename {file.name} does not match expected format. Please rename and try again.")
 
 st.markdown("---")
 st.caption("Built by Nitin, a CS student at ASU ✌️")

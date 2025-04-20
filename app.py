@@ -111,42 +111,21 @@ st.image("ASU-logo.png", width=250)
 st.title("AI-Powered Classroom Inspection - ASU Edition")
 st.markdown("Welcome! Upload classroom images to automatically detect issues and generate an inspection report.")
 
-# --- Remember user selections across reruns ---
-
-if "selected_inspector" not in st.session_state:
-    st.session_state.selected_inspector = "Nitin"
-
-if "selected_model" not in st.session_state:
-    st.session_state.selected_model = "Basic (fastest, cheapest)"  # default
-
-if "enable_yolo_opt" not in st.session_state:
-    st.session_state.enable_yolo_opt = True  # default ON
-
-
-
 
 # -----------------------------------------------------------
 # 2.  Generate docx report
 # -----------------------------------------------------------
 
 
-def generate_docx_report(report_text, original_images, anomaly_images=None, class_number=None, inspector=None):
-
+def generate_docx_report(report_text, original_images, anomaly_images=None, class_number=None):
     doc = Document()
 
     # --- Title and Date ---
     doc.add_heading('Classroom Inspection Report', 0)
-
-    # Always add Class Number
     if class_number:
         doc.add_paragraph(f"Class Number: {class_number}")
     else:
-        doc.add_paragraph("Class Number: __________________")
-
-    # ✅ Always add Inspector name
-    doc.add_paragraph(f"Inspector: {inspector if inspector else '__________________'}")
-
-    # Add Date
+        doc.add_paragraph("Class Number: __________________")  # Leave blank if not provided
     doc.add_paragraph(f"Date: {datetime.date.today().strftime('%B %d, %Y')}")
     doc.add_paragraph("")  # spacer
 
@@ -181,9 +160,8 @@ def generate_docx_report(report_text, original_images, anomaly_images=None, clas
     # --- Generate Filename ---
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     classroom_part = class_number.replace(" ", "_") if class_number else "Unknown"
-    inspector_part = inspector.replace(" ", "_") if inspector else "Anonymous"
-    file_name = f"{today_str}_{inspector_part}_{classroom_part}_report.docx"
-
+    file_suffix = f"{today_str}_{classroom_part}_report"
+    file_name = f"{file_suffix}.docx"
 
     # --- Save to BytesIO for download ---
     output_io = io.BytesIO()
@@ -250,67 +228,32 @@ if st.session_state.uploaded_files:
         st.rerun()
 
 
-# --- Step 1.5: Class Info + Inspector Dropdown ---
-st.subheader("Step 1.5: Classroom Details")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    class_number = st.text_input(
-        "Classroom Number (e.g., 'DH 101')",
-        value=""
-    )
-
-inspector_options = ["Nitin", "Jose", "Priyam", "Tanvi", "Others"]
-
-with col2:
-    inspector_choice = st.selectbox(
-        "Inspector Name",
-        inspector_options,
-        index=inspector_options.index(st.session_state.selected_inspector)
-    )
-    st.session_state.selected_inspector = inspector_choice
-
-    
-
-
-# If "Others", show a free text box
-inspector_name = inspector_choice
-if inspector_choice == "Others":
-    inspector_name = st.text_input("Enter Inspector Name", value="")
-
-
+# --- Optional Class Number Input ---
+st.subheader("Step 1.5: Enter Class Number (Optional)")
+class_number = st.text_input(
+    "If you want, enter the classroom number (e.g., 'DH 101'). This will appear in the report and file name.",
+    value=""
+)
 
 
 
 # --- Model Selection ---
-model_options = [
-    "Best (faster, lower cost)",
-    "Basic (fastest, cheapest)",
-    "Expert (most advanced reasoning for images) - need to add"
-]
-
+st.subheader("Step 2: Choose Model & Options")
 model_choice = st.selectbox(
     "Select LLM model type:",
-    model_options,
-    index=model_options.index(st.session_state.selected_model),
+    ["Best (faster, lower cost)", "Basic (fastest, cheapest)", "Expert (most advanced reasoning for images) - need to add"],
+    index=0,
     help="Best uses GPT-4o; Basic uses GPT-40-mini; Expert uses the best available vision reasoning, need to add yet"
 )
-st.session_state.selected_model = model_choice
-
-
-
 enable_yolo = st.checkbox(
     "Detect and highlight unusual objects?",
-    value=st.session_state.enable_yolo_opt,
+    value=False,
     help="Toggle to run or skip the YOLO-based anomaly object detector"
 )
-st.session_state.enable_yolo_opt = enable_yolo
-
 
 model_map = {
-    "Basic (fastest, cheapest)": ("gpt-4o-mini", "Using smaller model."),
     "Best (faster, lower cost)": ("gpt-4o", "Using best model."),
+    "Basic (fastest, cheapest)": ("gpt-4o-mini", "Using smaller model."),
     "Expert (most advanced reasoning for images) - need to add": ("gpt-4o", "Using expert-level reasoning model (gpt-4o).")
 }
 selected_model, model_comment = model_map[model_choice]
@@ -468,17 +411,13 @@ if run_button:
             report,
             st.session_state.uploaded_files,
             anomaly_images if enable_yolo else None,
-            class_number,
-            inspector=inspector_name
+            class_number
         )
-
 
         # Use the generated file name (or keep your own logic)
         today_str = datetime.date.today().strftime("%Y-%m-%d")
-        inspector_part = inspector_name.replace(" ", "_") if inspector_name else "Anonymous"
-        classroom_part = class_number.replace(" ", "_") if class_number else "Unknown"
-        file_name = f"{today_str}_{inspector_part}_{classroom_part}_report.docx"
-
+        file_suffix = f"{today_str}_{class_number.replace(' ', '_')}" if class_number else "classroom_inspection_report"
+        file_name = f"{file_suffix}.docx"
 
         # --- Download Button ---
         st.download_button(
@@ -488,12 +427,7 @@ if run_button:
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True
         )
-        st.info(
-            f"✅ Report saved locally at: `{local_file_path}`.\n\n"
-            "📄 You can open and review or modify this file if needed.\n\n"
-            "📤 Once finalized, switch to the **'Upload to Drive'** page from the sidebar to save it to Google Drive."
-        )
-
+        st.info(f"Report saved locally at {local_file_path}. After reviewing and modifying, go to the 'Upload to Drive' page to upload to Google Drive.")
 
         b64 = base64.b64encode(report.encode()).decode()
         href = f'<a href="data:file/txt;base64,{b64}" download="inspection_report.txt">📥 Download Report as TXT</a>'
