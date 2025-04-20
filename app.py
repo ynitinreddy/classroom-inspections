@@ -245,8 +245,10 @@ with col2:
     inspector_choice = st.selectbox(
         "Inspector Name",
         ["Nitin", "Jose", "Priyam", "Tanvi", "Others"],
-        index=0
+        index=["Nitin", "Jose", "Priyam", "Tanvi", "Others"].index(st.session_state.selected_inspector),
+        key="selected_inspector"
     )
+
 
 # If "Others", show a free text box
 inspector_name = inspector_choice
@@ -257,13 +259,20 @@ if inspector_choice == "Others":
 
 
 # --- Model Selection ---
-st.subheader("Step 2: Choose Model & Options")
+model_options = [
+    "Best (faster, lower cost)",
+    "Basic (fastest, cheapest)",
+    "Expert (most advanced reasoning for images) - need to add"
+]
+
 model_choice = st.selectbox(
     "Select LLM model type:",
-    ["Best (faster, lower cost)", "Basic (fastest, cheapest)", "Expert (most advanced reasoning for images) - need to add"],
-    index=0,
+    model_options,
+    index=model_options.index(st.session_state.selected_model),
+    key="selected_model",
     help="Best uses GPT-4o; Basic uses GPT-40-mini; Expert uses the best available vision reasoning, need to add yet"
 )
+
 enable_yolo = st.checkbox(
     "Detect and highlight unusual objects?",
     value=False,
