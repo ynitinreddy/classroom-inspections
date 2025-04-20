@@ -406,13 +406,15 @@ if run_button:
         st.subheader("Inspection Report")
         st.markdown(report)
         # --- Generate DOCX ---
-        docx_file = generate_docx_report(
+        # Unpack the tuple returned by generate_docx_report
+        output_io, generated_file_name, local_file_path = generate_docx_report(
             report,
             st.session_state.uploaded_files,
             anomaly_images if enable_yolo else None,
             class_number
         )
 
+        # Use the generated file name (or keep your own logic)
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         file_suffix = f"{today_str}_{class_number.replace(' ', '_')}" if class_number else "classroom_inspection_report"
         file_name = f"{file_suffix}.docx"
@@ -420,18 +422,16 @@ if run_button:
         # --- Download Button ---
         st.download_button(
             label="📄 Download Full Report (.docx)",
-            data=docx_file,
+            data=output_io,  # Use output_io, not the entire tuple
             file_name=file_name,
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True
         )
-
+        st.info(f"Report saved locally at {local_file_path}. After reviewing and modifying, go to the 'Upload to Drive' page to upload to Google Drive.")
 
         b64 = base64.b64encode(report.encode()).decode()
         href = f'<a href="data:file/txt;base64,{b64}" download="inspection_report.txt">📥 Download Report as TXT</a>'
         st.markdown(href, unsafe_allow_html=True)
-
-        st.info("Reports saved locally. After reviewing and modifying, go to the 'Upload to Drive' page to upload them to Google Drive.")
 
 # --- Footer ---
 st.markdown("---")
