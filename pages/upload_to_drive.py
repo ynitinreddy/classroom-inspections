@@ -158,7 +158,7 @@ if uploaded_files:
 if st.session_state.drive_uploaded_files:
     if st.button("🗑️ Clear Uploaded Files"):
         st.session_state.drive_uploaded_files = []
-        new_id = int(st.session_state.drive_uploader_key.split("_")[1]) + 1
+        new_id = int(st.session_state.drive_uploader_key.split("_")[-1]) + 1
         st.session_state.drive_uploader_key = f"drive_uploader_{new_id}"
         st.rerun()
 
