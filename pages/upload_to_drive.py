@@ -8,8 +8,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 import subprocess
 import shutil
-import pypandoc
-
+import datetime
 
 # Optional conversion libs
 try:
@@ -167,45 +166,60 @@ if st.session_state.drive_uploaded_files:
         st.session_state.drive_uploader_key = f"drive_uploader_{new_id}"
         st.rerun()
 
+
 # ───────────────────────────────────────────────────────────────
-#  Main upload process
+#  Main upload process (DOCX/TXT → Drive, no PDF conversion)
 # ───────────────────────────────────────────────────────────────
 if st.session_state.drive_uploaded_files:
     service = get_drive_service()
     if service is None:
         st.stop()
 
-    for file in st.session_state.drive_uploaded_files:
-        folder_path = parse_filename(file.name)
-        if not folder_path:
-            st.warning(f"⚠️ Filename `{file.name}` does not match expected format. Please rename and try again.")
-            continue
+    # Ask user for their name to build folder path
+    user_name = st.text_input("Your name", key="drive_user_name")
+    if not user_name:
+        st.warning("Please enter your name to proceed with the upload.")
+    else:
+        # Build Drive path: Classroom Inspections / YYYY-MM-DD / user_name
+        today = datetime.date.today().strftime("%Y-%m-%d")
+        drive_path = f"Classroom Inspections/{today}/{user_name}"
+        dest_folder_id = get_or_create_folder_path(service, drive_path)
 
-        st.markdown(f"📁 Detected Folder: `{folder_path}`")
-        dest_folder_id = get_or_create_folder_path(service, folder_path)
+        files = st.session_state.drive_uploaded_files
+        progress = st.progress(0)
+        total = len(files)
 
-        # Save uploaded file to a temporary location first
-        ext = file.name.split(".")[-1].lower()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp_in:
-            tmp_in.write(file.read())
-            tmp_in.flush()
-            tmp_input_path = tmp_in.name
+        for idx, file in enumerate(files):
+            ext = file.name.split(".")[-1].lower()
+            # Save to temp file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp_in:
+                tmp_in.write(file.read())
+                tmp_in.flush()
+                tmp_input_path = tmp_in.name
 
-        pdf_path = convert_to_pdf(tmp_input_path, ext)
-        if pdf_path is None:
-            st.error(f"❌ Failed to convert `{file.name}` to PDF; uploading original.")
-            media = MediaFileUpload(tmp_input_path, mimetype="application/octet-stream")
-            meta = {"name": file.name, "parents": [dest_folder_id]}
-            service.files().create(body=meta, media_body=media, fields="id").execute()
+            st.write(f"Uploading `{file.name}` to `{drive_path}`…")
+            media = MediaFileUpload(
+                tmp_input_path,
+                mimetype=(
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    if ext == "docx"
+                    else "text/plain"
+                ),
+            )
+            service.files().create(
+                body={"name": file.name, "parents": [dest_folder_id]},
+                media_body=media,
+                fields="id",
+            ).execute()
+
+            # Clean up temp file
             os.unlink(tmp_input_path)
-            continue
 
-        pdf_filename = os.path.basename(pdf_path)
-        upload_file(service, pdf_path, dest_folder_id)
-        # show a tick next to the uploaded file
-        st.markdown(f"✅ **{pdf_filename}** uploaded to `{folder_path}`")
-        os.unlink(tmp_input_path)
-        os.unlink(pdf_path)
+            # Update progress and show success
+            progress.progress((idx + 1) / total)
+            st.success(f"✅ `{file.name}` uploaded.")
+
+        st.balloons()  # celebrate when all are done
 
 
 st.markdown("---")
