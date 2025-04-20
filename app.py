@@ -181,9 +181,8 @@ def generate_docx_report(report_text, original_images, anomaly_images=None, clas
     # --- Generate Filename ---
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     classroom_part = class_number.replace(" ", "_") if class_number else "Unknown"
-    inspector_part = inspector.replace(" ", "_") if inspector else "Anonymous"
-    file_name = f"{today_str}_{inspector_part}_{classroom_part}_report.docx"
-
+    file_suffix = f"{today_str}_{classroom_part}_report"
+    file_name = f"{file_suffix}.docx"
 
     # --- Save to BytesIO for download ---
     output_io = io.BytesIO()
@@ -245,13 +244,9 @@ if st.session_state.uploaded_files:
     if st.button("🗑️ Clear Uploaded Images"):
         st.session_state.uploaded_files = []
         # Change the uploader key to reset the widget
-    try:
-        key_id = int(st.session_state.drive_uploader_key.split("_")[-1])
-    except ValueError:
-        key_id = 0  # default fallback if it’s invalid
-    st.session_state.drive_uploader_key = f"drive_uploader_{key_id + 1}"
-
-    st.rerun()
+        key_id = int(st.session_state.uploader_key.split("_")[1]) + 1
+        st.session_state.uploader_key = f"uploader_{key_id}"
+        st.rerun()
 
 
 # --- Step 1.5: Class Info + Inspector Dropdown ---
@@ -493,10 +488,10 @@ if run_button:
             use_container_width=True
         )
         st.info(
-            f"✅ Report saved locally at: `{local_file_path}`.\n\n"
-            "📄 You can open and review or modify this file if needed.\n\n"
-            "📤 Once finalized, switch to the **'Upload to Drive'** page from the sidebar to save it to Google Drive."
-        )
+        f"✅ Report saved locally at: `{local_file_path}`.\n\n"
+        "📄 You can open and review or modify this file if needed.\n\n"
+        "📤 Once finalized, switch to the **'Upload to Drive'** page from the sidebar to save it to Google Drive."
+    )
 
 
         b64 = base64.b64encode(report.encode()).decode()
