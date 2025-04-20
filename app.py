@@ -85,7 +85,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
 def get_image_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
@@ -94,40 +93,32 @@ def get_image_base64(path):
 # 1.  Encapsulate model loading in a cached function
 # -----------------------------------------------------------
 
-# Put this near the other top‑level defs (anywhere before you need the model)
-@st.cache_resource(show_spinner="Loading YOLO model…")
+# Put this near the other top level defs (anywhere before you need the model)
+@st.cache_resource(show_spinner="Loading YOLO model…")
 def load_yolo():
     """
     Downloads yolov8n.pt the first time and keeps the model
     resident in memory across Streamlit reruns.
     """
     from ultralytics import YOLO
-    return YOLO("yolov8n.pt")      # tiny 6 MB model, good for CPU
-
+    return YOLO("yolov8n.pt")      # tiny 6 MB model, good for CPU
 
 img_b64 = get_image_base64("musk-photo-1.jpg")
 
 st.image("ASU-logo.png", width=250)
 st.title("AI-Powered Classroom Inspection - ASU Edition")
 st.markdown("Welcome! Upload classroom images to automatically detect issues and generate an inspection report.")
-# --- Remember user selections across reruns ---
-
+# --- Remember last selected inspector and model ---
 if "selected_inspector" not in st.session_state:
     st.session_state.selected_inspector = "Nitin"
 
 if "selected_model" not in st.session_state:
-    st.session_state.selected_model = "Basic (fastest, cheapest)"  # default
-
-if "enable_yolo_opt" not in st.session_state:
-    st.session_state.enable_yolo_opt = True  # default ON
-
-
+    st.session_state.selected_model = "Best (faster, lower cost)"
 
 
 # -----------------------------------------------------------
 # 2.  Generate docx report
 # -----------------------------------------------------------
-
 
 def generate_docx_report(report_text, original_images, anomaly_images=None, class_number=None, inspector=None):
 
@@ -198,7 +189,6 @@ def generate_docx_report(report_text, original_images, anomaly_images=None, clas
     return output_io, file_name, local_file_path
 
 
-
 # --- About Section ---
 with st.sidebar.expander("📄 About This Project"):
     # st.image("musk-photo-1.jpg", width=150, caption="Nitin Reddy Yarava")
@@ -238,7 +228,6 @@ uploaded_files = st.file_uploader(
 if uploaded_files:
     st.session_state.uploaded_files = uploaded_files
 
-
 if st.session_state.uploaded_files:
     if st.button("🗑️ Clear Uploaded Images"):
         st.session_state.uploaded_files = []
@@ -246,7 +235,6 @@ if st.session_state.uploaded_files:
         key_id = int(st.session_state.uploader_key.split("_")[1]) + 1
         st.session_state.uploader_key = f"uploader_{key_id}"
         st.rerun()
-
 
 # --- Step 1.5: Class Info + Inspector Dropdown ---
 st.subheader("Step 1.5: Classroom Details")
@@ -270,12 +258,10 @@ with col2:
     st.session_state.selected_inspector = inspector_choice
     
 
-
 # If "Others", show a free text box
 inspector_name = inspector_choice
 if inspector_choice == "Others":
     inspector_name = st.text_input("Enter Inspector Name", value="")
-
 
 
 
@@ -293,7 +279,6 @@ model_choice = st.selectbox(
     help="Best uses GPT-4o; Basic uses GPT-40-mini; Expert uses the best available vision reasoning, need to add yet"
 )
 st.session_state.selected_model = model_choice
-
 
 enable_yolo = st.checkbox(
     "Detect and highlight unusual objects?",
@@ -354,7 +339,6 @@ def detect_anomalies(images):
                 annotated_images.append(Image.fromarray(result_img_annotated))
 
     return counts, annotated_images
-
 
 
 
@@ -437,7 +421,6 @@ if run_button:
             anomalies, annotated_images = detect_anomalies(st.session_state.uploaded_files)
             anomaly_images = annotated_images 
 
-
         if annotated_images:
             with st.expander("📦 YOLO Anomaly Detections"):
                 cols = st.columns(min(len(annotated_images), 4))
@@ -446,7 +429,6 @@ if run_button:
                         st.image(img, caption=f"Detections in Image {i+1}", use_container_width=True)
         else:
             st.info("No anomalies were detected in any images.")
-
 
 
         status.info("Calling AI Model…")
@@ -465,13 +447,11 @@ if run_button:
             inspector=inspector_name
         )
 
-
         # Use the generated file name (or keep your own logic)
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         inspector_part = inspector_name.replace(" ", "_") if inspector_name else "Anonymous"
         classroom_part = class_number.replace(" ", "_") if class_number else "Unknown"
         file_name = f"{today_str}_{inspector_part}_{classroom_part}_report.docx"
-
 
         # --- Download Button ---
         st.download_button(
@@ -490,3 +470,4 @@ if run_button:
 # --- Footer ---
 st.markdown("---")
 st.caption("Built by Nitin, a CS student at ASU ✌️")
+
