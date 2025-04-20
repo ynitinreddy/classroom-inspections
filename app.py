@@ -110,7 +110,6 @@ img_b64 = get_image_base64("musk-photo-1.jpg")
 st.image("ASU-logo.png", width=250)
 st.title("AI-Powered Classroom Inspection - ASU Edition")
 st.markdown("Welcome! Upload classroom images to automatically detect issues and generate an inspection report.")
-
 # --- Remember user selections across reruns ---
 
 if "selected_inspector" not in st.session_state:
@@ -269,7 +268,6 @@ with col2:
         index=inspector_options.index(st.session_state.selected_inspector)
     )
     st.session_state.selected_inspector = inspector_choice
-
     
 
 
@@ -277,7 +275,6 @@ with col2:
 inspector_name = inspector_choice
 if inspector_choice == "Others":
     inspector_name = st.text_input("Enter Inspector Name", value="")
-
 
 
 
@@ -298,18 +295,15 @@ model_choice = st.selectbox(
 st.session_state.selected_model = model_choice
 
 
-
 enable_yolo = st.checkbox(
     "Detect and highlight unusual objects?",
-    value=st.session_state.enable_yolo_opt,
+    value=True,
     help="Toggle to run or skip the YOLO-based anomaly object detector"
 )
-st.session_state.enable_yolo_opt = enable_yolo
-
 
 model_map = {
-    "Basic (fastest, cheapest)": ("gpt-4o-mini", "Using smaller model."),
     "Best (faster, lower cost)": ("gpt-4o", "Using best model."),
+    "Basic (fastest, cheapest)": ("gpt-4o-mini", "Using smaller model."),
     "Expert (most advanced reasoning for images) - need to add": ("gpt-4o", "Using expert-level reasoning model (gpt-4o).")
 }
 selected_model, model_comment = model_map[model_choice]
@@ -487,12 +481,7 @@ if run_button:
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True
         )
-        st.info(
-        f"✅ Report saved locally at: `{local_file_path}`.\n\n"
-        "📄 You can open and review or modify this file if needed.\n\n"
-        "📤 Once finalized, switch to the **'Upload to Drive'** page from the sidebar to save it to Google Drive."
-    )
-
+        st.info(f"Report saved locally at {local_file_path}. After reviewing and modifying, go to the 'Upload to Drive' page to upload to Google Drive.")
 
         b64 = base64.b64encode(report.encode()).decode()
         href = f'<a href="data:file/txt;base64,{b64}" download="inspection_report.txt">📥 Download Report as TXT</a>'
