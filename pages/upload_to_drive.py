@@ -170,56 +170,63 @@ if st.session_state.drive_uploaded_files:
 # ───────────────────────────────────────────────────────────────
 #  Main upload process (DOCX/TXT → Drive, no PDF conversion)
 # ───────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────
+#  Main upload process (DOCX/TXT → Drive, no PDF conversion)
+#  Folder structure: Classroom Inspections / DATE / USERNAME
+# ───────────────────────────────────────────────────────────────
 if st.session_state.drive_uploaded_files:
     service = get_drive_service()
     if service is None:
         st.stop()
 
-    # Ask user for their name to build folder path
-    user_name = st.text_input("Your name", key="drive_user_name")
-    if not user_name:
-        st.warning("Please enter your name to proceed with the upload.")
-    else:
-        # Build Drive path: Classroom Inspections / YYYY-MM-DD / user_name
-        today = datetime.date.today().strftime("%Y-%m-%d")
-        drive_path = f"Classroom Inspections/{today}/{user_name}"
+    files = st.session_state.drive_uploaded_files
+    progress = st.progress(0)
+    total = len(files)
+
+    for idx, file in enumerate(files):
+        # Expect filename: YYYY‑MM‑DD_UserName_Class_report.docx or .txt
+        m = re.match(
+            r"(\d{4}-\d{2}-\d{2})_([A-Za-z0-9]+)_[A-Za-z0-9_]+_report\.(docx|txt)$",
+            file.name,
+        )
+        if not m:
+            st.warning(f"⚠️ Skipping `{file.name}`: filename not in expected format.")
+            continue
+
+        date_str, user_name, ext = m.group(1), m.group(2), m.group(3).lower()
+        drive_path = f"Classroom Inspections/{date_str}/{user_name}"
         dest_folder_id = get_or_create_folder_path(service, drive_path)
 
-        files = st.session_state.drive_uploaded_files
-        progress = st.progress(0)
-        total = len(files)
+        # Save to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp_in:
+            tmp_in.write(file.read())
+            tmp_in.flush()
+            tmp_input_path = tmp_in.name
 
-        for idx, file in enumerate(files):
-            ext = file.name.split(".")[-1].lower()
-            # Save to temp file
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp_in:
-                tmp_in.write(file.read())
-                tmp_in.flush()
-                tmp_input_path = tmp_in.name
+        st.write(f"Uploading `{file.name}` to `{drive_path}`…")
+        media = MediaFileUpload(
+            tmp_input_path,
+            mimetype=(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                if ext == "docx"
+                else "text/plain"
+            ),
+        )
+        service.files().create(
+            body={"name": file.name, "parents": [dest_folder_id]},
+            media_body=media,
+            fields="id",
+        ).execute()
 
-            st.write(f"Uploading `{file.name}` to `{drive_path}`…")
-            media = MediaFileUpload(
-                tmp_input_path,
-                mimetype=(
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    if ext == "docx"
-                    else "text/plain"
-                ),
-            )
-            service.files().create(
-                body={"name": file.name, "parents": [dest_folder_id]},
-                media_body=media,
-                fields="id",
-            ).execute()
+        # Clean up temp file
+        os.unlink(tmp_input_path)
 
-            # Clean up temp file
-            os.unlink(tmp_input_path)
+        # Update progress and show success
+        progress.progress((idx + 1) / total)
+        st.success(f"✅ `{file.name}` uploaded to `{drive_path}`")
 
-            # Update progress and show success
-            progress.progress((idx + 1) / total)
-            st.success(f"✅ `{file.name}` uploaded.")
+    st.balloons()
 
-        st.balloons()  # celebrate when all are done
 
 
 st.markdown("---")
