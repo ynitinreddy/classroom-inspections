@@ -402,7 +402,7 @@ Use a numbered list 1–12. For each:
 8. Flag: Present/Absent.
 9. “No Food/Drinks” Plaque: Present/Absent.
 10. Instructor’s Desk: Present/Absent. If present, note cleanliness.
-11. Clock: Present/Absent.
+11. Clock: Present/Absent/Unsure.
 12. Additional Comments: Any unusual items or safety issues.
 """
 
@@ -447,7 +447,7 @@ if run_btn:
                         st.image(im, caption=f"Detections {i + 1}", use_container_width=True)
 
     # 3) Run GPT inspection over images + anomaly summary
-    status.info("Analyzing classroom with GPT…")
+    status.info("Analyzing classroom with AI Vision…")
     report = call_gpt_hybrid(
         st.session_state.uploaded_files,
         prompt,
