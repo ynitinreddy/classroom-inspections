@@ -438,14 +438,15 @@ if run_btn:
                     with cols[i % 4]:
                         st.image(im, caption=f"Detection {i + 1}", use_container_width=True)
 
-    # 3) Run GPT inspection over images + anomaly summary
-    status.info("Analyzing classroom with AI Vision…")
-    report = call_gpt_hybrid(
-        st.session_state.uploaded_files,
-        prompt,
-        selected_model,
-        anomaly_data=anomalies if st.session_state.enable_yolo else None,
-    )
+        # 3) Run GPT inspection over images + detection summary
+        status.info("Analyzing classroom with AI Vision…")
+        report = call_gpt_hybrid(
+            st.session_state.uploaded_files,
+            prompt,
+            selected_model,
+            anomaly_data=detections if st.session_state.enable_yolo else None,
+        )
+
 
     # 4) Display the 13‑point inspection report
     st.subheader("📝 Inspection Report")
