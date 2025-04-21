@@ -425,6 +425,9 @@ if run_btn:
         for i, f in enumerate(st.session_state.uploaded_files):
             with cols[i % 4]:
                 st.image(Image.open(f), caption=f"Image {i + 1}", use_container_width=True)
+    
+    st.write("📝 Model reports these classes:", load_yolo_cached().model.names)
+
 
     # 2) YOLO object detection (optional)
     detections = {}
