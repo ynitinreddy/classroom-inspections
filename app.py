@@ -319,8 +319,8 @@ selected_model, model_comment = model_map[model_choice]
 
 if st.session_state.enable_yolo:
     yolo_model = load_yolo_cached()
-    # Rename to reflect general object detection
-    YOLO_CLASSES = {
+    # ONLY use this if those indexes are *really* what your .pt was trained on:
+    CUSTOM_CLASSES = {
         0: "911 Address",
         1: "Bill of Rights Constitution",
         2: "Capacity Sign",
@@ -347,8 +347,9 @@ if st.session_state.enable_yolo:
         annotated: list[Image.Image] = []
         for img_file in images:
             img = Image.open(img_file).convert("RGB")
-            # no `classes=` → uses only YOUR custom model’s classes
-            results = yolo_model(np.array(img))
+            # filter to exactly the IDs in your map
+            results = yolo_model(np.array(img), classes=list(CUSTOM_CLASSES.keys()))
+
 
             for result in results:
                 if not result.boxes:
@@ -356,7 +357,7 @@ if st.session_state.enable_yolo:
                 # result.names is the list of labels from your .pt
                 for box in result.boxes:
                     cls = int(box.cls[0])
-                    label = result.names[cls]
+                    label = CUSTOM_CLASSES[cls]
                     counts[label] = counts.get(label, 0) + 1
 
                 # re‑plot with your model’s labels
