@@ -93,7 +93,7 @@ def image_to_base64(image_file) -> str:
 def load_yolo_cached():
     @st.cache_resource(show_spinner="Loading YOLO model …")
     def _load():
-        return YOLO("yolov8n.pt")  # ~6 MB, CPU‑friendly
+        return YOLO("classroom_yolo.pt")  # ~6 MB, CPU‑friendly
 
     return _load()
 
