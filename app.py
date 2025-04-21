@@ -343,26 +343,26 @@ if st.session_state.enable_yolo:
     }
 
     def detect_objects(images):
-        counts: dict[str, int] = {}
+        counts: dict[str,int] = {}
         annotated: list[Image.Image] = []
         for img_file in images:
             img = Image.open(img_file).convert("RGB")
-            # no `classes=` argument → uses your `classroom_yolo.pt` labels
+            # no `classes=` → uses only YOUR custom model’s classes
             results = yolo_model(np.array(img))
 
             for result in results:
                 if not result.boxes:
                     continue
-                any_box = False
+                # result.names is the list of labels from your .pt
                 for box in result.boxes:
                     cls = int(box.cls[0])
-                    # label comes from the model itself
-                    label = yolo_model.model.names[cls]  # or result.names[cls]
+                    label = result.names[cls]
                     counts[label] = counts.get(label, 0) + 1
-                    any_box = True
-                if any_box:
-                    annotated.append(Image.fromarray(result.plot(conf=True, labels=True)))
+
+                # re‑plot with your model’s labels
+                annotated.append(Image.fromarray(result.plot(conf=True, labels=True)))
         return counts, annotated
+
 else:
     detect_objects = None
 
