@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from docx import Document
 from docx.shared import Inches
 from ultralytics import YOLO
+import torch
 import openai
 
 # -----------------------------------------------------------
@@ -57,6 +58,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 # -----------------------------------------------------------
 # 2️⃣  Session‑State Defaults (remember previous choices)
 # -----------------------------------------------------------
@@ -76,6 +78,7 @@ if "enable_yolo" not in st.session_state:
 # -----------------------------------------------------------
 
 def get_image_base64(path: str) -> str:
+    """Return base64 string of a local image for inline HTML/Markdown."""
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
@@ -88,21 +91,23 @@ def image_to_base64(image_file) -> str:
 
 
 def load_yolo_cached():
-    @st.cache_resource(show_spinner="Loading YOLO model …")
+    @st.cache_resource(show_spinner="Loading YOLO model …")
     def _load():
-        return YOLO("classroom_yolo.pt")
+        return YOLO("classroom_yolo.pt")  # ~6 MB, CPU‑friendly
+
     return _load()
 
 
-def call_gpt_hybrid(images, prompt, model, detection_data=None):
+def call_gpt_hybrid(images, prompt, model, anomaly_data=None):
+    """Call GPT‑4o/mini with mixed image blocks and optional anomaly summary."""
     blocks = [{"type": "text", "text": prompt}]
 
     if st.session_state.enable_yolo:
-        if detection_data:
-            summary_lines = "\n".join(f"- {k}: {v}" for k, v in detection_data.items())
-            blocks.insert(1, {"type": "text", "text": f"Detected objects by YOLO:\n{summary_lines}"})
+        if anomaly_data:
+            summary_lines = "\n".join(f"- {k}: {v}" for k, v in anomaly_data.items())
+            blocks.insert(1, {"type": "text", "text": f"These anomalies were detected by an object‑detection model:\n{summary_lines}"})
         else:
-            blocks.insert(1, {"type": "text", "text": "No objects detected by YOLO."})
+            blocks.insert(1, {"type": "text", "text": "No anomalies were detected by the model."})
 
     blocks += [
         {
@@ -126,67 +131,88 @@ def call_gpt_hybrid(images, prompt, model, detection_data=None):
 def generate_docx_report(
     report_text,
     original_images,
-    annotated_images=None,
+    anomaly_images=None,
     class_number: str | None = None,
     inspector_name: str | None = None,
 ):
+    """Return (BytesIO, filename, local_path) for a full DOCX report."""
+
     doc = Document()
+
+    # Header info
     doc.add_heading("Classroom Inspection Report", 0)
-    doc.add_paragraph(f"Class Number: {class_number or '__________________'}")
-    doc.add_paragraph(f"Inspector: {inspector_name or '__________________'}")
+    doc.add_paragraph(f"Class Number: {class_number if class_number else '__________________'}")
+    doc.add_paragraph(f"Inspector: {inspector_name if inspector_name else '__________________'}")
     doc.add_paragraph(f"Date: {datetime.date.today().strftime('%B %d, %Y')}")
     doc.add_paragraph("")
 
+    # Inspection summary
     doc.add_heading("1. Inspection Summary", level=1)
     for line in report_text.strip().split("\n"):
         if line.strip():
             doc.add_paragraph(line.strip(), style="List Bullet")
 
-    doc.add_heading("2. Uploaded Images", level=1)
-    for i, fpath in enumerate(original_images):
-        img = Image.open(fpath)
+    # Original images
+    doc.add_heading("2. Uploaded Classroom Images", level=1)
+    for i, img_file in enumerate(original_images):
+        img = Image.open(img_file)
         img_io = io.BytesIO()
         img.save(img_io, format="JPEG")
         img_io.seek(0)
-        doc.add_paragraph(f"Original Image {i+1}")
+        doc.add_paragraph(f"Original Image {i + 1}")
         doc.add_picture(img_io, width=Inches(5))
         doc.add_paragraph("")
 
-    if annotated_images:
-        doc.add_heading("3. YOLO Detections", level=1)
-        for i, img in enumerate(annotated_images):
+    # Anomaly detections
+    if anomaly_images:
+        doc.add_heading("3. YOLO Anomaly Detections", level=1)
+        for i, img in enumerate(anomaly_images):
             img_io = io.BytesIO()
             img.save(img_io, format="JPEG")
             img_io.seek(0)
-            doc.add_paragraph(f"Detection {i+1}")
+            doc.add_paragraph(f"Anomaly Image {i + 1}")
             doc.add_picture(img_io, width=Inches(5))
             doc.add_paragraph("")
 
+    # Build filename
     today_str = datetime.date.today().strftime("%Y-%m-%d")
-    insp = (inspector_name or "anonymous").replace(" ", "_")
-    cls = (class_number or "unknownclass").replace(" ", "_")
-    fname = f"{today_str}_{insp}_{cls}_report.docx"
+    inspector_part = (
+        inspector_name.strip().replace(" ", "_") if inspector_name else "anonymous"
+    )
+    classroom_part = (
+        class_number.strip().replace(" ", "_") if class_number else "unknownclass"
+    )
+    file_name = f"{today_str}_{inspector_part}_{classroom_part}_report.docx"
+
+    # Save to BytesIO and local temp dir
+    output_io = io.BytesIO()
+    doc.save(output_io)
+    output_io.seek(0)
 
     os.makedirs("temp_reports", exist_ok=True)
-    local_path = os.path.join("temp_reports", fname)
-    bio = io.BytesIO()
-    doc.save(bio)
-    bio.seek(0)
-    doc.save(local_path)
-    return bio, fname, local_path
+    local_path = os.path.join("temp_reports", file_name)
+    with open(local_path, "wb") as fp:
+        doc.save(fp)
+
+    return output_io, file_name, local_path
+
 
 # -----------------------------------------------------------
 # 4️⃣  Header & Logo
 # -----------------------------------------------------------
 logo_b64 = get_image_base64("ASU-logo.png")
-st.markdown(f"<img src='data:image/png;base64,{logo_b64}' width='250'/>", unsafe_allow_html=True)
-st.title("AI‑Powered Classroom Inspection · ASU Edition")
-st.markdown("Upload classroom images to detect key features and generate a report.")
+st.markdown(
+    f"<img src='data:image/png;base64,{logo_b64}' width='250'/>",
+    unsafe_allow_html=True,
+)
+st.title("AI‑Powered Classroom Inspection · ASU Edition")
+st.markdown("Upload classroom images to automatically detect issues and generate an inspection report.")
 
 # -----------------------------------------------------------
 # 5️⃣  Image Uploader
 # -----------------------------------------------------------
-st.subheader("Step 1: Upload Classroom Images")
+
+st.subheader("Step 1: Upload Classroom Images")
 if "uploaded_files" not in st.session_state:
     st.session_state.uploaded_files = []
 if "uploader_key" not in st.session_state:
@@ -198,43 +224,102 @@ uploaded_files = st.file_uploader(
     type=["jpg", "jpeg", "png"],
     key=st.session_state.uploader_key,
 )
+
 if uploaded_files:
     st.session_state.uploaded_files = uploaded_files
+
 if st.session_state.uploaded_files:
-    if st.button("🗑️ Clear Uploaded Images"):
+    if st.button("🗑️ Clear Uploaded Images"):
         st.session_state.uploaded_files = []
         new_id = int(st.session_state.uploader_key.split("_")[1]) + 1
         st.session_state.uploader_key = f"uploader_{new_id}"
         st.rerun()
 
 # -----------------------------------------------------------
-# 6️⃣  Inspection Details
+# 6️⃣  Class No. & Inspector (Combined Step 1.5)
 # -----------------------------------------------------------
-st.subheader("Step 1.5: Inspection Details")
+
+st.subheader("Step 1.5: Inspection Details")
+
 col_a, col_b = st.columns(2)
 with col_a:
-    class_number = st.text_input("Classroom Number (e.g., 'DH 101')", value=st.session_state.get("class_number", ""), key="class_number")
+    class_number = st.text_input(
+        "Classroom Number (e.g., 'DH 101') – leave blank if unknown",
+        value=st.session_state.get("class_number", ""),
+        key="class_number",
+    )
+
 with col_b:
     inspector_options = ["Nitin", "Jose", "Priyam", "Tanvi", "Others"]
-    inspector_name = st.selectbox("Inspector Name", inspector_options, index=inspector_options.index(st.session_state.inspector_name) if st.session_state.inspector_name in inspector_options else 0, key="inspector_name")
+    inspector_name = st.selectbox(
+        "Inspector Name",
+        inspector_options,
+        index=inspector_options.index(st.session_state.inspector_name)
+        if st.session_state.inspector_name in inspector_options
+        else 0,
+        key="inspector_name",
+    )
+
+# If "Others", prompt for custom name
 custom_name = ""
 if inspector_name == "Others":
-    custom_name = st.text_input("Enter inspector name", value=st.session_state.get("custom_inspector_name", ""), key="custom_inspector_name")
-inspector_used = custom_name.strip() if inspector_name == "Others" else inspector_name
-inspector_used = inspector_used or "anonymous"
+    custom_name = st.text_input(
+        "Enter inspector name:",
+        value=st.session_state.get("custom_inspector_name", ""),
+        key="custom_inspector_name",
+    )
+
+inspector_used = (
+    custom_name.strip() if inspector_name == "Others" else inspector_name
+)
+if inspector_used == "":
+    inspector_used = "anonymous"
 
 # -----------------------------------------------------------
-# 7️⃣  Model & YOLO Options
+# 7️⃣  Model & YOLO Options (remembered)
 # -----------------------------------------------------------
-st.subheader("Step 2: Choose Model & Options")
-model_options = ["Best (faster, lower cost)", "Basic (fastest, cheapest)", "Expert (most advanced reasoning) – need to add"]
-model_choice = st.selectbox("LLM Model:", model_options, index=model_options.index(st.session_state.model_choice) if st.session_state.model_choice in model_options else model_options.index(DEFAULT_MODEL), key="model_choice")
 
-enable_yolo = st.checkbox("Detect and highlight key objects?", value=st.session_state.enable_yolo, key="enable_yolo")
-selected_model, model_comment = {"Best (faster, lower cost)": ("gpt-4o", "Using best model."), "Basic (fastest, cheapest)": ("gpt-4o-mini", "Using smaller model."), "Expert (most advanced reasoning) – need to add": ("gpt-4o", "Using expert model.")}[model_choice]
+st.subheader("Step 2: Choose Model & Options")
+model_options = [
+    "Best (faster, lower cost)",
+    "Basic (fastest, cheapest)",
+    "Expert (most advanced reasoning for images) – need to add",
+]
+model_choice = st.selectbox(
+    "LLM Model:",
+    model_options,
+    index=model_options.index(st.session_state.model_choice)
+    if st.session_state.model_choice in model_options
+    else model_options.index(DEFAULT_MODEL),
+    key="model_choice",
+)
 
-if enable_yolo:
+enable_yolo_checkbox = st.checkbox(
+    "Detect and highlight unusual objects?",
+    value=st.session_state.enable_yolo,
+    key="enable_yolo",
+)
+
+# After widgets, capture the current selections without touching their keys
+enable_yolo = st.session_state.enable_yolo  # current checkbox state
+
+# -----------------------------------------------------------
+# 8️⃣  Model Mapping & YOLO Init (lazy)
+# -----------------------------------------------------------
+
+model_map = {
+    "Best (faster, lower cost)": ("gpt-4o", "Using best model."),
+    "Basic (fastest, cheapest)": ("gpt-4o-mini", "Using smaller model."),
+    "Expert (most advanced reasoning for images) – need to add": (
+        "gpt-4o",
+        "Using expert-level reasoning model (gpt-4o).",
+    ),
+}
+selected_model, model_comment = model_map[model_choice]
+
+if st.session_state.enable_yolo:
     yolo_model = load_yolo_cached()
+    # Rename to reflect general object detection
     YOLO_CLASSES = {
         0: "911 Address",
         1: "Bill of Rights Constitution",
@@ -256,30 +341,35 @@ if enable_yolo:
         17: "Whiteboard",
         18: "Window Covering",
     }
+
     def detect_objects(images):
-        counts, annotated = {}, []
+        counts: dict[str, int] = {}
+        annotated: list[Image.Image] = []
         for img_file in images:
             img = Image.open(img_file).convert("RGB")
             results = yolo_model(np.array(img), classes=list(YOLO_CLASSES.keys()))
             for result in results:
                 if not result.boxes:
                     continue
-                found=False
+                any_box = False
                 for box in result.boxes:
-                    cls=int(box.cls[0])
+                    cls = int(box.cls[0])
                     if cls in YOLO_CLASSES:
-                        label=YOLO_CLASSES[cls]
-                        counts[label]=counts.get(label,0)+1
-                        found=True
-                if found:
+                        label = YOLO_CLASSES[cls]
+                        counts[label] = counts.get(label, 0) + 1
+                        any_box = True
+                if any_box:
                     annotated.append(Image.fromarray(result.plot(conf=True, labels=True)))
         return counts, annotated
 else:
-    detect_objects=None
+    detect_objects = None
+
+
 
 # -----------------------------------------------------------
 # 9️⃣  Prompt Engineering
 # -----------------------------------------------------------
+
 def build_default_prompt(use_yolo: bool) -> str:
     extra = " and object counts" if use_yolo else ""
     return f"""
@@ -304,18 +394,20 @@ Use a numbered list 1–12. For each:
 8. Flag: Present/Absent.
 9. “No Food/Drinks” Plaque: Present/Absent.
 10. Instructor’s Desk: Present/Absent. If present, note cleanliness.
-11. Clock: Present/Absent.
+11. Clock: Present/Absent/Unsure.
 12. Additional Comments: Any unusual items or safety issues.
 """
-prompt_default = build_default_prompt(enable_yolo)
-with st.expander("⚙️ More Options: Edit Inspection Prompt"):
+
+prompt_default = build_default_prompt(st.session_state.enable_yolo)
+with st.expander("⚙️ More Options: Edit Inspection Prompt"):
     prompt = st.text_area("LLM Prompt", prompt_default, height=260)
 
 # -----------------------------------------------------------
 # 🔟  Run Inspection
 # -----------------------------------------------------------
-center = st.columns([1,2,1])[1]
-run_btn = center.button("🔍 Run Inspection", use_container_width=True)
+
+center = st.columns([1, 2, 1])[1]
+run_btn = center.button("🔍 Run Inspection", use_container_width=True)
 status = st.empty()
 
 if run_btn:
@@ -323,51 +415,60 @@ if run_btn:
         st.error("Please upload at least one image.")
         st.stop()
 
+    # 1) Show uploaded images
     status.info("Preparing images…")
-    with st.expander("📷 View Uploaded Images"):
-        cols=st.columns(min(len(st.session_state.uploaded_files),4))
-        for i,f in enumerate(st.session_state.uploaded_files):
-            with cols[i%4]:
-                st.image(Image.open(f), caption=f"Image {i+1}", use_container_width=True)
+    with st.expander("📷 View uploaded images"):
+        cols = st.columns(min(len(st.session_state.uploaded_files), 4))
+        for i, f in enumerate(st.session_state.uploaded_files):
+            with cols[i % 4]:
+                st.image(Image.open(f), caption=f"Image {i + 1}", use_container_width=True)
 
-    detections, annotated_imgs = {}, []
-    if enable_yolo and detect_objects:
+    # 2) YOLO object detection (optional)
+    detections = {}
+    annotated_imgs = []
+    if st.session_state.enable_yolo and detect_objects:
         status.info("Detecting objects with YOLO…")
         detections, annotated_imgs = detect_objects(st.session_state.uploaded_files)
         st.write("**Detected objects:**", detections or "No objects detected.")
-        if annotated_imgs:
-            with st.expander("📦 YOLO Detections"):
-                cols=st.columns(min(len(annotated_imgs),4))
-                for i,im in enumerate(annotated_imgs):
-                    with cols[i%4]:
-                        st.image(im, caption=f"Detection {i+1}", use_container_width=True)
 
+        if annotated_imgs:
+            with st.expander("📦 YOLO Detections"):
+                cols = st.columns(min(len(annotated_imgs), 4))
+                for i, im in enumerate(annotated_imgs):
+                    with cols[i % 4]:
+                        st.image(im, caption=f"Detection {i + 1}", use_container_width=True)
+
+    # 3) Run GPT inspection over images + anomaly summary
     status.info("Analyzing classroom with AI Vision…")
     report = call_gpt_hybrid(
         st.session_state.uploaded_files,
         prompt,
         selected_model,
-        detection_data=detections if enable_yolo else None,
+        anomaly_data=anomalies if st.session_state.enable_yolo else None,
     )
 
+    # 4) Display the 13‑point inspection report
     st.subheader("📝 Inspection Report")
     st.markdown(report)
 
-    bio, fname, local_path = generate_docx_report(
+    # 5) Generate and offer download of DOCX report
+    bio, file_name, local_file_path = generate_docx_report(
         report,
         st.session_state.uploaded_files,
-        annotated_images=annotated_imgs,
+        anomaly_images=annotated_imgs,
         class_number=class_number,
         inspector_name=inspector_used,
     )
-    st.download_button("📄 Download DOCX Report", data=bio, file_name=fname)
+    st.download_button("📄 Download DOCX Report", data=bio, file_name=file_name)
 
     status.success("All done! 🎉")
 
+
 # -----------------------------------------------------------
-# 1️⃣1️⃣ Sidebar – About
+# 1️⃣1️⃣  Sidebar – About
 # -----------------------------------------------------------
-with st.sidebar.expander("📄 About This Project"):
+
+with st.sidebar.expander("📄 About This Project"):
     avatar_b64 = get_image_base64("musk-photo-1.jpg")
     st.markdown(
         f"""
@@ -375,7 +476,7 @@ with st.sidebar.expander("📄 About This Project"):
             <img src='data:image/jpeg;base64,{avatar_b64}' style='width:150px;border-radius:50%;'/>
             <div style='color:#8C1D40;font-size:16px;margin-top:8px;'><strong>Nitin Reddy Yarava</strong></div>
             <p style='font-size:16px;'>
-                This project automates ASU classroom inspections using a custom YOLO model and GPT‑4 Vision.
+                This project automates ASU classroom inspections using YOLOv8 for object detection and GPT‑4 Vision for reasoning.
             </p>
         </div>
         """,
@@ -383,7 +484,8 @@ with st.sidebar.expander("📄 About This Project"):
     )
 
 # -----------------------------------------------------------
-# 1️⃣2️⃣ Footer
+# 1️⃣2️⃣  Footer
 # -----------------------------------------------------------
+
 st.markdown("---")
 st.caption("Built by Nitin, a CS student at ASU ✌️")
