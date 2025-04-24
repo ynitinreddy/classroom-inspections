@@ -105,9 +105,9 @@ def call_gpt_hybrid(images, prompt, model, anomaly_data=None):
     if st.session_state.enable_yolo:
         if anomaly_data:
             summary_lines = "\n".join(f"- {k}: {v}" for k, v in anomaly_data.items())
-            blocks.insert(1, {"type": "text", "text": f"These anomalies were detected by an object‑detection model:\n{summary_lines}"})
+            blocks.insert(1, {"type": "text", "text": f"These objets were detected by an object‑detection model:\n{summary_lines}"})
         else:
-            blocks.insert(1, {"type": "text", "text": "No anomalies were detected by the model."})
+            blocks.insert(1, {"type": "text", "text": "No objects were detected by the model."})
 
     blocks += [
         {
@@ -165,12 +165,12 @@ def generate_docx_report(
 
     # Anomaly detections
     if anomaly_images:
-        doc.add_heading("3. YOLO Anomaly Detections", level=1)
+        doc.add_heading("3. YOLO Enhanced Detections", level=1)
         for i, img in enumerate(anomaly_images):
             img_io = io.BytesIO()
             img.save(img_io, format="JPEG")
             img_io.seek(0)
-            doc.add_paragraph(f"Anomaly Image {i + 1}")
+            doc.add_paragraph(f"Recognized Image {i + 1}")
             doc.add_picture(img_io, width=Inches(5))
             doc.add_paragraph("")
 
