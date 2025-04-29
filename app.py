@@ -12,6 +12,8 @@ from docx.shared import Inches
 from ultralytics import YOLO
 import torch
 import openai
+import cv2
+
 
 # -----------------------------------------------------------
 # 0️⃣  Environment & API Keys
@@ -365,26 +367,39 @@ if st.session_state.enable_yolo:
 
         for img_file in images:
             img = Image.open(img_file).convert("RGB")
-            results = yolo_model(np.array(img), classes=list(CUSTOM_CLASSES.keys()))
+            img_np = np.array(img)
+            results = yolo_model(img_np, classes=list(CUSTOM_CLASSES.keys()))
 
             for result in results:
                 if not result.boxes:
                     continue
 
-                # Filter boxes by confidence
-                high_conf_boxes = []
                 for box in result.boxes:
-                    if box.conf[0] >= 0.45:
-                        cls = int(box.cls[0])
-                        label = CUSTOM_CLASSES[cls]
-                        counts[label] = counts.get(label, 0) + 1
-                        high_conf_boxes.append(box)
+                    if box.conf[0] < 0.45:
+                        continue
+                    cls = int(box.cls[0])
+                    label = CUSTOM_CLASSES[cls]
+                    counts[label] = counts.get(label, 0) + 1
 
-                # Update result.boxes with only high-confidence boxes
-                result.boxes = type(result.boxes)(high_conf_boxes)  # keep only confident ones
+                    # Draw only high-confidence boxes
+                    xyxy = box.xyxy[0].cpu().numpy().astype(int)  # (x1, y1, x2, y2)
+                    conf = float(box.conf[0])
+                    name = label
 
-                # Plot filtered boxes
-                annotated.append(Image.fromarray(result.plot(conf=True, labels=True)))
+                    cv2.rectangle(img_np, (xyxy[0], xyxy[1]), (xyxy[2], xyxy[3]), (0, 255, 0), 2)
+                    cv2.putText(
+                        img_np,
+                        f"{name} {conf:.2f}",
+                        (xyxy[0], xyxy[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (0, 255, 0),
+                        1,
+                        cv2.LINE_AA,
+                    )
+
+            # Convert back to PIL for Streamlit
+            annotated.append(Image.fromarray(img_np))
 
         return counts, annotated
 
