@@ -371,14 +371,14 @@ if st.session_state.enable_yolo:
             for result in results:
                 if not result.boxes:
                     continue
-                # result.names is the list of labels from your .pt
                 for box in result.boxes:
+                    if box.conf[0] < 0.45:
+                        continue
                     cls = int(box.cls[0])
                     label = CUSTOM_CLASSES[cls]
                     counts[label] = counts.get(label, 0) + 1
-
-                # re‑plot with your model’s labels
                 annotated.append(Image.fromarray(result.plot(conf=True, labels=True)))
+
         return counts, annotated
 
 else:
