@@ -417,10 +417,6 @@ def detect_objects(images):
     return counts, annotated
 
 
-else:
-    detect_objects = None
-
-
 
 # -----------------------------------------------------------
 # 9️⃣  Prompt Engineering
