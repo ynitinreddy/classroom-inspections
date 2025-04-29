@@ -12,8 +12,6 @@ from docx.shared import Inches
 from ultralytics import YOLO
 import torch
 import openai
-import cv2
-
 
 # -----------------------------------------------------------
 # 0️⃣  Environment & API Keys
@@ -362,47 +360,26 @@ if st.session_state.enable_yolo:
     }
 
     def detect_objects(images):
-        counts: dict[str, int] = {}
+        counts: dict[str,int] = {}
         annotated: list[Image.Image] = []
-
         for img_file in images:
             img = Image.open(img_file).convert("RGB")
-            img_np = np.array(img)
-            results = yolo_model(img_np, classes=list(CUSTOM_CLASSES.keys()))
+            # filter to exactly the IDs in your map
+            results = yolo_model(np.array(img), classes=list(CUSTOM_CLASSES.keys()), conf=0.45)
+
 
             for result in results:
                 if not result.boxes:
                     continue
-
+                # result.names is the list of labels from your .pt
                 for box in result.boxes:
-                    if box.conf[0] < 0.45:
-                        continue
                     cls = int(box.cls[0])
                     label = CUSTOM_CLASSES[cls]
                     counts[label] = counts.get(label, 0) + 1
 
-                    # Draw only high-confidence boxes
-                    xyxy = box.xyxy[0].cpu().numpy().astype(int)  # (x1, y1, x2, y2)
-                    conf = float(box.conf[0])
-                    name = label
-
-                    cv2.rectangle(img_np, (xyxy[0], xyxy[1]), (xyxy[2], xyxy[3]), (0, 255, 0), 2)
-                    cv2.putText(
-                        img_np,
-                        f"{name} {conf:.2f}",
-                        (xyxy[0], xyxy[1] - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5,
-                        (0, 255, 0),
-                        1,
-                        cv2.LINE_AA,
-                    )
-
-            # Convert back to PIL for Streamlit
-            annotated.append(Image.fromarray(img_np))
-
+                # re‑plot with your model’s labels
+                annotated.append(Image.fromarray(result.plot(conf=True, labels=True)))
         return counts, annotated
-
 
 else:
     detect_objects = None
