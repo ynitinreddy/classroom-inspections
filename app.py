@@ -382,14 +382,16 @@ def iou(box1, box2):
 def detect_objects(images):
     counts = {}
     annotated = []
-    for img_file in images:
-        img = Image.open(img_file).convert("RGB")
-        img_np = np.array(img)
-        results = yolo_model(img_np, classes=list(CUSTOM_CLASSES.keys()))
 
+    for img_file in images:
+        img_original = Image.open(img_file).convert("RGB")
+        img_np = np.array(img_original)
+        results = yolo_model(img_np, classes=list(CUSTOM_CLASSES.keys()))
         result = results[0]
+
         seen_boxes = []
-        draw = ImageDraw.Draw(img)
+        img_annotated = img_original.copy()  # Draw on a separate copy
+        draw = ImageDraw.Draw(img_annotated)
 
         for box in result.boxes:
             conf = box.conf[0].item()
@@ -401,20 +403,20 @@ def detect_objects(images):
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
             current_box = (x1, y1, x2, y2)
 
-            # IoU suppression for overlapping boxes
             if any(iou(current_box, b) > 0.5 for b in seen_boxes):
                 continue
 
             seen_boxes.append(current_box)
             counts[label] = counts.get(label, 0) + 1
 
-            # Draw box + label manually
+            # Draw bounding box and label
             draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
             draw.text((x1, y1 - 10), f"{label} {conf:.2f}", fill="red")
 
-        annotated.append(img.copy())
+        annotated.append(img_annotated)
 
     return counts, annotated
+
 
 
 
