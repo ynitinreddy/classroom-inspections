@@ -12,8 +12,6 @@ from docx.shared import Inches
 from ultralytics import YOLO
 import torch
 import openai
-from ultralytics.utils.plotting import Annotator
-
 
 # -----------------------------------------------------------
 # 0️⃣  Environment & API Keys
@@ -362,37 +360,34 @@ if st.session_state.enable_yolo:
     }
 
     def detect_objects(images):
-        CONFIDENCE_THRESHOLD = 0.45
         counts: dict[str, int] = {}
         annotated: list[Image.Image] = []
 
         for img_file in images:
             img = Image.open(img_file).convert("RGB")
-            img_array = np.array(img)
-            results = yolo_model(img_array, classes=list(CUSTOM_CLASSES.keys()))
+            results = yolo_model(np.array(img), classes=list(CUSTOM_CLASSES.keys()))
 
             for result in results:
-                annotator = Annotator(img_array.copy())
-
                 if not result.boxes:
                     continue
 
+                # Filter boxes by confidence
+                high_conf_boxes = []
                 for box in result.boxes:
-                    conf = float(box.conf[0])
-                    if conf < CONFIDENCE_THRESHOLD:
-                        continue
+                    if box.conf[0] >= 0.45:
+                        cls = int(box.cls[0])
+                        label = CUSTOM_CLASSES[cls]
+                        counts[label] = counts.get(label, 0) + 1
+                        high_conf_boxes.append(box)
 
-                    cls = int(box.cls[0])
-                    label = CUSTOM_CLASSES.get(cls, f"Class {cls}")
-                    counts[label] = counts.get(label, 0) + 1
+                # Update result.boxes with only high-confidence boxes
+                result.boxes = type(result.boxes)(high_conf_boxes)  # keep only confident ones
 
-                    # Draw box
-                    annotator.box_label(box.xyxy[0], f"{label} {conf:.2f}")
-
-                annotated_img = Image.fromarray(annotator.result())
-                annotated.append(annotated_img)
+                # Plot filtered boxes
+                annotated.append(Image.fromarray(result.plot(conf=True, labels=True)))
 
         return counts, annotated
+
 
 else:
     detect_objects = None
