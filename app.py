@@ -93,7 +93,7 @@ def image_to_base64(image_file) -> str:
 def load_yolo_cached():
     @st.cache_resource(show_spinner="Loading YOLO model …")
     def _load():
-        return YOLO("classroom_model.pt")  # ~6 MB, CPU‑friendly
+        return YOLO("300_yolov8.pt")  # ~6 MB, CPU‑friendly
 
     return _load()
 
@@ -320,26 +320,43 @@ selected_model, model_comment = model_map[model_choice]
 if st.session_state.enable_yolo:
     yolo_model = load_yolo_cached()
     # ONLY use this if those indexes are *really* what your .pt was trained on:
+    # CUSTOM_CLASSES = {
+    #     0: "911 Address",
+    #     1: "Bill of Rights Constitution",
+    #     2: "Capacity Sign",
+    #     3: "Classroom Layout",
+    #     4: "Classroom Support Pocket",
+    #     5: "Clock",
+    #     6: "Dirty Whiteboard",
+    #     7: "ERG Layout",
+    #     8: "Exit Sign",
+    #     9: "Flag",
+    #     10: "Miscellaneous Objects",
+    #     11: "No Food/Drinks Sign",
+    #     12: "Recycle Bin",
+    #     13: "Scrapes",
+    #     14: "Stains",
+    #     15: "Trash Bin",
+    #     16: "University Classrooms Pocket",
+    #     17: "Whiteboard",
+    #     18: "Window Covering",
+    # }
+
     CUSTOM_CLASSES = {
         0: "911 Address",
-        1: "Bill of Rights Constitution",
-        2: "Capacity Sign",
-        3: "Classroom Layout",
+        1: "Bill of Rights & Constitution",
+        2: "Bins",
+        3: "Capacity Sign",
         4: "Classroom Support Pocket",
         5: "Clock",
-        6: "Dirty Whiteboard",
-        7: "ERG Layout",
-        8: "Exit Sign",
-        9: "Flag",
-        10: "Miscellaneous Objects",
-        11: "No Food/Drinks Sign",
-        12: "Recycle Bin",
-        13: "Scrapes",
-        14: "Stains",
-        15: "Trash Bin",
-        16: "University Classrooms Pocket",
-        17: "Whiteboard",
-        18: "Window Covering",
+        6: "ERG",
+        7: "Exit Sign",
+        8: "Flag",
+        9: "No Food or Drinks Sign",
+        10: "Scuffs/Scrapes",
+        11: "Stains",
+        12: "UCL Pocket",
+        13: "Whiteboard",
     }
 
     def detect_objects(images):
@@ -398,7 +415,10 @@ Use a numbered list 1–12. For each:
 9. “No Food/Drinks” Plaque: Present/Absent.
 10. Instructor’s Desk: Present/Absent. If present, note cleanliness.
 11. Clock: Present/Absent/Unsure.
-12. Additional Comments: Any unusual items or safety issues.
+12: Capacity Sign: Present/Absent/Unsure
+13. UCL Pocket: Present/Absent/Unsure
+14. Classroom Support Pocket: Present/Absent/Unsure
+15. Additional Comments: Any unusual items or safety issues.
 """
 
 prompt_default = build_default_prompt(st.session_state.enable_yolo)
