@@ -361,60 +361,60 @@ if st.session_state.enable_yolo:
 
 from PIL import ImageDraw
 
-    def iou(box1, box2):
-        """Compute IoU between two bounding boxes."""
-        x1, y1, x2, y2 = box1
-        x1_p, y1_p, x2_p, y2_p = box2
+def iou(box1, box2):
+    """Compute IoU between two bounding boxes."""
+    x1, y1, x2, y2 = box1
+    x1_p, y1_p, x2_p, y2_p = box2
 
-        xi1 = max(x1, x1_p)
-        yi1 = max(y1, y1_p)
-        xi2 = min(x2, x2_p)
-        yi2 = min(y2, y2_p)
-        inter_area = max(0, xi2 - xi1) * max(0, yi2 - yi1)
+    xi1 = max(x1, x1_p)
+    yi1 = max(y1, y1_p)
+    xi2 = min(x2, x2_p)
+    yi2 = min(y2, y2_p)
+    inter_area = max(0, xi2 - xi1) * max(0, yi2 - yi1)
 
-        box1_area = (x2 - x1) * (y2 - y1)
-        box2_area = (x2_p - x1_p) * (y2_p - y1_p)
-        union_area = box1_area + box2_area - inter_area
+    box1_area = (x2 - x1) * (y2 - y1)
+    box2_area = (x2_p - x1_p) * (y2_p - y1_p)
+    union_area = box1_area + box2_area - inter_area
 
-        return inter_area / union_area if union_area else 0
+    return inter_area / union_area if union_area else 0
 
 
-    def detect_objects(images):
-        counts = {}
-        annotated = []
-        for img_file in images:
-            img = Image.open(img_file).convert("RGB")
-            img_np = np.array(img)
-            results = yolo_model(img_np, classes=list(CUSTOM_CLASSES.keys()))
+def detect_objects(images):
+    counts = {}
+    annotated = []
+    for img_file in images:
+        img = Image.open(img_file).convert("RGB")
+        img_np = np.array(img)
+        results = yolo_model(img_np, classes=list(CUSTOM_CLASSES.keys()))
 
-            result = results[0]
-            seen_boxes = []
-            draw = ImageDraw.Draw(img)
+        result = results[0]
+        seen_boxes = []
+        draw = ImageDraw.Draw(img)
 
-            for box in result.boxes:
-                conf = box.conf[0].item()
-                if conf < 0.45:
-                    continue
+        for box in result.boxes:
+            conf = box.conf[0].item()
+            if conf < 0.45:
+                continue
 
-                cls = int(box.cls[0].item())
-                label = CUSTOM_CLASSES.get(cls, f"Class {cls}")
-                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-                current_box = (x1, y1, x2, y2)
+            cls = int(box.cls[0].item())
+            label = CUSTOM_CLASSES.get(cls, f"Class {cls}")
+            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+            current_box = (x1, y1, x2, y2)
 
-                # IoU suppression for overlapping boxes
-                if any(iou(current_box, b) > 0.5 for b in seen_boxes):
-                    continue
+            # IoU suppression for overlapping boxes
+            if any(iou(current_box, b) > 0.5 for b in seen_boxes):
+                continue
 
-                seen_boxes.append(current_box)
-                counts[label] = counts.get(label, 0) + 1
+            seen_boxes.append(current_box)
+            counts[label] = counts.get(label, 0) + 1
 
-                # Draw box + label manually
-                draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
-                draw.text((x1, y1 - 10), f"{label} {conf:.2f}", fill="red")
+            # Draw box + label manually
+            draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
+            draw.text((x1, y1 - 10), f"{label} {conf:.2f}", fill="red")
 
-            annotated.append(img.copy())
+        annotated.append(img.copy())
 
-        return counts, annotated
+    return counts, annotated
 
 
 else:
