@@ -359,7 +359,7 @@ if st.session_state.enable_yolo:
         13: "Whiteboard",
     }
 
-from PIL import ImageDraw
+from PIL import ImageDraw, ImageFont
 
 def iou(box1, box2):
     """Compute IoU between two bounding boxes."""
@@ -390,7 +390,7 @@ def detect_objects(images):
         result = results[0]
 
         seen_boxes = []
-        img_annotated = img_original.copy()  # Draw on a separate copy
+        img_annotated = img_original.copy()
         draw = ImageDraw.Draw(img_annotated)
 
         for box in result.boxes:
@@ -409,10 +409,14 @@ def detect_objects(images):
             seen_boxes.append(current_box)
             counts[label] = counts.get(label, 0) + 1
 
-            # Draw bounding box and label
+            # Draw bounding box
             draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
-            draw.text((x1, y1 - 10), f"{label} {conf:.2f}", fill="red")
 
+            # Draw label (make sure text doesn't go negative)
+            text_position = (x1, max(0, y1 - 15))
+            draw.text(text_position, f"{label} {conf:.2f}", fill="red")
+
+        # After drawing, save this annotated image
         annotated.append(img_annotated)
 
     return counts, annotated
