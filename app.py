@@ -365,7 +365,7 @@ if st.session_state.enable_yolo:
         for img_file in images:
             img = Image.open(img_file).convert("RGB")
             # filter to exactly the IDs in your map
-            results = yolo_model(np.array(img), classes=list(CUSTOM_CLASSES.keys()), conf=0.45)
+            results = yolo_model(np.array(img), classes=list(CUSTOM_CLASSES.keys()), conf=0.45, iou=0.45)
 
 
             for result in results:
