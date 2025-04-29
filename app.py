@@ -12,6 +12,8 @@ from docx.shared import Inches
 from ultralytics import YOLO
 import torch
 import openai
+from ultralytics.utils.plotting import Annotator
+
 
 # -----------------------------------------------------------
 # 0️⃣  Environment & API Keys
@@ -360,25 +362,36 @@ if st.session_state.enable_yolo:
     }
 
     def detect_objects(images):
-        counts: dict[str,int] = {}
+        CONFIDENCE_THRESHOLD = 0.45
+        counts: dict[str, int] = {}
         annotated: list[Image.Image] = []
+
         for img_file in images:
             img = Image.open(img_file).convert("RGB")
-            # filter to exactly the IDs in your map
-            results = yolo_model(np.array(img), classes=list(CUSTOM_CLASSES.keys()))
-
+            img_array = np.array(img)
+            results = yolo_model(img_array, classes=list(CUSTOM_CLASSES.keys()))
 
             for result in results:
+                annotator = Annotator(img_array.copy())
+
                 if not result.boxes:
                     continue
-                # result.names is the list of labels from your .pt
+
                 for box in result.boxes:
+                    conf = float(box.conf[0])
+                    if conf < CONFIDENCE_THRESHOLD:
+                        continue
+
                     cls = int(box.cls[0])
-                    label = CUSTOM_CLASSES[cls]
+                    label = CUSTOM_CLASSES.get(cls, f"Class {cls}")
                     counts[label] = counts.get(label, 0) + 1
 
-                # re‑plot with your model’s labels
-                annotated.append(Image.fromarray(result.plot(conf=True, labels=True)))
+                    # Draw box
+                    annotator.box_label(box.xyxy[0], f"{label} {conf:.2f}")
+
+                annotated_img = Image.fromarray(annotator.result())
+                annotated.append(annotated_img)
+
         return counts, annotated
 
 else:
