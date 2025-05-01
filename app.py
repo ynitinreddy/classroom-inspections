@@ -93,7 +93,7 @@ def image_to_base64(image_file) -> str:
 def load_yolo_cached():
     @st.cache_resource(show_spinner="Loading YOLO model …")
     def _load():
-        return YOLO("300_yolov8n.pt")  # ~6 MB, CPU‑friendly
+        return YOLO("best_yolov8n.pt")  # ~6 MB, CPU‑friendly
 
     return _load()
 
@@ -122,7 +122,7 @@ def call_gpt_hybrid(images, prompt, model, anomaly_data=None):
         model=model,
         messages=[{"role": "user", "content": blocks}],
         max_tokens=1000,
-        temperature=0.3,
+        temperature=0.2,
         top_p=0.8,
     )
     return resp.choices[0].message.content
@@ -395,30 +395,62 @@ def build_default_prompt(use_yolo: bool) -> str:
     return f"""
 {model_comment}
 
-You are a classroom inspection assistant. You will be given images{extra}.
-⚠️ VERY IMPORTANT: Keep each of the 12 items to one very short sentence (“No problems found.” if OK).
+You are a classroom inspection assistant. You will be given a set of classroom images and a list of objects detected by another vision model (YOLO) {extra}. Use the following rules carefully:
 
-Use a numbered list 1–12. For each:
-- Start with the heading (e.g., “Walls:”).
-- If the feature is in the image, say “Present – [very brief detail]”.
-- If it’s not there, say “Absent.”
-- If you can’t tell, say “Cannot determine.”
+🔒 VERY IMPORTANT:
+- DO NOT guess object presence. If it's not in the detection list and not visually obvious, say "Absent" or "Cannot determine."
+- Use YOLO data for object presence. Only describe object details (e.g., cleanliness, damage) if visible in the images.
+- You can describe abstract issues (e.g., messy floor, stains, scuffs) but must be brief.
 
-1. Side Walls: Present/Absent. If present, note scuffs, holes, etc.
-2. Ceiling: Present/Absent. If present, note holes, stains, etc.
-3. White Board: Present/Absent. If present, note cleanliness or writing.
-4. Floor: Present/Absent. If present, note trash, stains, tears.
-5. Bins: Present/Absent. If present, count and type (trash/recycle).
-6. Exit Sign: Present/Absent.
-7. Lights: Present/Absent. If present, note any bulbs out.
-8. Flag: Present/Absent.
-9. “No Food/Drinks” Plaque: Present/Absent.
-10. Instructor’s Desk: Present/Absent. If present, note cleanliness.
-11. Clock: Present/Absent/Unsure.
-12: Capacity Sign: Present/Absent/Unsure
-13. UCL Pocket: Present/Absent/Unsure
-14. Classroom Support Pocket: Present/Absent/Unsure
-15. Additional Comments: Any unusual items or safety issues.
+🧠 DETECTION RULES:
+- Trust YOLO for: 
+  • 911 Address
+  • Bill of Rights & Constitution
+  • Bins
+  • Capacity Sign
+  • Classroom Support Pocket
+  • Clock
+  • ERG
+  • Exit Sign
+  • Flag
+  • No Food or Drinks Sign
+  • UCL Pocket
+  • Whiteboard
+
+- YOLO also detects:
+  • Scuffs/Scrapes
+  • Stains
+
+If "Stains" or "Scuffs" are detected, include them. Otherwise, only comment if clearly visible.
+
+✍️ FORMAT:
+Use a numbered list 1–19. Each item is one short sentence. Use this format:
+
+- "Label: Present – [brief note]"
+- "Label: Absent"
+- "Label: Cannot determine"
+
+1. Side Walls (use YOLO + check for scrapes/scuffs)
+2. Ceiling (use YOLO + check for stains/holes)
+3. White Board (use YOLO + check for writing/cleanliness)
+4. Floor (use YOLO + look for stains, trash, dirt)
+5. Bins (YOLO only + look for number of bins)
+6. Exit Sign (YOLO only)
+7. Lights (check for bulbs out)
+8. Flag (YOLO only + check for flag)
+9. “No Food/Drinks” Plaque (YOLO only)
+10. Instructor’s Desk (visible condition)
+11. Clock (YOLO only)
+12. Capacity Sign (YOLO only)
+13. UCL Pocket (YOLO only)
+14. Classroom Support Pocket (YOLO only)
+15. 911 Address on door frame (YOLO only)
+16. ERG (YOLO only)
+17: Clock (YOLO only)
+18: Bill of Rights & Constitution (YOLO Only)
+19. Additional Comments (e.g., messy room, safety issues, anything odd)
+
+Be accurate. Use YOLO detections where possible. Be brief but specific.
 """
 
 prompt_default = build_default_prompt(st.session_state.enable_yolo)
