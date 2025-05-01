@@ -410,8 +410,7 @@ def build_default_prompt(use_yolo: bool) -> str:
 You are a classroom inspection assistant. You will be given a set of classroom images and a list of objects detected by another vision model (YOLO){extra}. Use the following rules carefully:
 
 🔒 VERY IMPORTANT:
-- DO NOT guess object presence unless instructed below. If it’s not in the detection list and you aren’t explicitly told to "Visually inspect" it, say “Absent” or “Cannot determine.”
-- Only describe condition details (e.g. cleanliness, damage, functionality) for items that you’re told to visually inspect.
+- DO NOT guess object presence unless instructed below. If it’s not in the detection list and you are explicitly told to "Visually inspect", briefly describe the condition based on context. 
 - Be brief and specific.
 
 
