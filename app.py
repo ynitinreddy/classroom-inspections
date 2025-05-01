@@ -99,24 +99,35 @@ def load_yolo_cached():
 
 
 def call_gpt_hybrid(images, prompt, model, anomaly_data=None):
-    """Call GPT‑4o/mini with mixed image blocks and optional anomaly summary."""
-    blocks = [{"type": "text", "text": prompt}]
+    """
+    1) Build a complete YOLO summary (zeros for absent classes)
+    2) Prepend it to your human prompt
+    3) Send that single text block + images to GPT
+    """
+    # 1) Build a full counts table (use your CUSTOM_CLASSES mapping)
+    labels = list(CUSTOM_CLASSES.values())
+    if anomaly_data:
+        full_counts = {label: anomaly_data.get(label, 0) for label in labels}
+    else:
+        full_counts = {label: 0 for label in labels}
+    summary = "\n".join(f"- {label}: {count}" for label, count in full_counts.items())
 
-    if st.session_state.enable_yolo:
-        if anomaly_data:
-            summary_lines = "\n".join(f"- {k}: {v}" for k, v in anomaly_data.items())
-            blocks.insert(1, {"type": "text", "text": f"These objets were detected by an object‑detection model:\n{summary_lines}"})
-        else:
-            blocks.insert(1, {"type": "text", "text": "No objects were detected by the model."})
+    # 2) Inject the summary explicitly (and forbid guessing)
+    injection = (
+        "YOLO Detection Summary (use these counts to decide Present vs Absent – do NOT guess):\n"
+        f"{summary}\n\n"
+    )
+    full_text = injection + prompt
 
-    blocks += [
-        {
+    # 3) Build the multimodal blocks
+    blocks = [{"type": "text", "text": full_text}]
+    for img in images:
+        blocks.append({
             "type": "image_url",
             "image_url": {"url": f"data:image/jpeg;base64,{image_to_base64(img)}"},
-        }
-        for img in images
-    ]
+        })
 
+    # 4) Call the OpenAI API
     client = openai.OpenAI()
     resp = client.chat.completions.create(
         model=model,
@@ -126,6 +137,7 @@ def call_gpt_hybrid(images, prompt, model, anomaly_data=None):
         top_p=0.9,
     )
     return resp.choices[0].message.content
+
 
 
 def generate_docx_report(
@@ -478,7 +490,7 @@ if run_btn:
             with cols[i % 4]:
                 st.image(Image.open(f), caption=f"Image {i + 1}", use_container_width=True)
     
-    st.write("📝 Model reports these classes:", load_yolo_cached().model.names)
+    # st.write("📝 Model reports these classes:", load_yolo_cached().model.names)
 
 
     # 2) YOLO object detection (optional)
