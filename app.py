@@ -122,8 +122,8 @@ def call_gpt_hybrid(images, prompt, model, anomaly_data=None):
         model=model,
         messages=[{"role": "user", "content": blocks}],
         max_tokens=1000,
-        temperature=0.2,
-        top_p=0.8,
+        temperature=0.1,
+        top_p=0.9,
     )
     return resp.choices[0].message.content
 
@@ -430,11 +430,11 @@ Use a numbered list 1–19. Each item is one short sentence. Use this format:
 - "Label: Absent"
 - "Label: Cannot determine"
 
-1. Side Walls (use YOLO + check for scrapes/scuffs)
-2. Ceiling (use YOLO + check for stains/holes)
+1. Side Walls (check for scrapes/scuffs)
+2. Ceiling (check for stains/holes)
 3. White Board (use YOLO + check for writing/cleanliness)
-4. Floor (use YOLO + look for stains, trash, dirt)
-5. Bins (YOLO only + look for number of bins)
+4. Floor (look for stains, trash, dirt)
+5. Bins (use YOLO + look for number of bins)
 6. Exit Sign (YOLO only)
 7. Lights (check for bulbs out)
 8. Flag (YOLO only + check for flag)
