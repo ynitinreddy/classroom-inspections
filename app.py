@@ -441,6 +441,7 @@ Use a numbered list 1–19. Each item is one short sentence. Use this format:
 - "Label: Present – [brief note]"
 - "Label: Absent"
 - "Label: Cannot determine"
+- "Label: Describe condition"
 
 1. Side Walls (check for scrapes/scuffs)
 2. Ceiling (check for stains/holes)
